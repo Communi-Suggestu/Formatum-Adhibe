@@ -1,0 +1,47 @@
+plugins {
+    alias(libs.plugins.tableau.common)
+    alias(libs.plugins.tableau.maven.publishing)
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+tableau {
+    project {
+        group = "com.communi-suggestu.scena"
+        publisher = "communi-suggestu"
+        versioning {
+            version = environmentVariable("VERSION")
+                    .orElse(property("local.version"))
+            suffix = ""
+        }
+    }
+    maven {
+        publishUsingActionsTokenTo('maven', 'https://formatum-adhibe.maven.communi-suggestu.com/repository/formatum-adhibe')
+        publishLocally()
+        pom({
+            usingMitLicense()
+            usingGit()
+        })
+    }
+}
+
+allprojects {Project project ->
+    java {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(project.getProperties().get("java.version")))
+        }
+    }
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:6.0.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}

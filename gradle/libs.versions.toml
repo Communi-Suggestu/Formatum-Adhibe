@@ -1,0 +1,8 @@
+[versions]
+tableau="0.0.93"
+foojay="1.+"
+
+[plugins]
+tableau-maven-publishing = { id = "com.ldtteam.tableau.maven-publishing", version.ref = "tableau" }
+tableau-common = { id = "com.ldtteam.tableau.common", version.ref = "tableau" }
+foojay = { id = "org.gradle.toolchains.foojay-resolver-convention", version.ref = "foojay" }
