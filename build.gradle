@@ -19,7 +19,7 @@ tableau {
         }
     }
     maven {
-        publishUsingActionsTokenTo('maven', 'https://formatum-adhibe.maven.communi-suggestu.com/repository/formatum-adhibe')
+        publishUsingActionsTokenTo('maven', 'https://maven.communi-suggestu.com/repository/formatum-adhibe')
         publishLocally()
         pom({
             usingMitLicense()
