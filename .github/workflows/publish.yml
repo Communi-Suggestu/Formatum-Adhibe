@@ -47,5 +47,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ env.VERSION }}
-        run: ./gradlew --no-daemon publish
+        run: ./gradlew --no-daemon publish --info --stacktrace
 
