@@ -43,9 +43,18 @@ jobs:
       - name: Export version from semantic version
         run: echo "VERSION=${{ steps.semver.outputs.version }}" >> "$GITHUB_ENV"
 
+      - name: Fetch OIDC token
+        id: oidc
+        run: |
+          OIDC_JWT=$(curl -sS \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=maven.communi-suggestu.com" \
+            | jq -r .value)
+          echo "token=$OIDC_JWT" >> $GITHUB_OUTPUT
+
       - name: Publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.oidc.outputs.token }}
           VERSION: ${{ env.VERSION }}
         run: ./gradlew --no-daemon publish --info --stacktrace
 
