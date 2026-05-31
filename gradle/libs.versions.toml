@@ -1,5 +1,5 @@
 [versions]
-tableau="0.0.93"
+tableau="0.0.94"
 foojay="1.+"
 
 [plugins]
