@@ -12,7 +12,7 @@ repositories {
 
 tableau {
     project {
-        group = "com.communi-suggestu.scena"
+        group = "com.communi-suggestu"
         publisher = "communi-suggestu"
         versioning {
             version = environmentVariable("VERSION")
