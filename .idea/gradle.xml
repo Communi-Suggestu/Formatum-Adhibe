@@ -4,31 +4,11 @@
   <component name="GradleSettings">
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
-        <compositeConfiguration>
-          <compositeBuild compositeDefinitionSource="SCRIPT">
-            <builds>
-              <build path="$PROJECT_DIR$/libs/immaculate" name="immaculate">
-                <projects>
-                  <project path="$PROJECT_DIR$/libs/immaculate" />
-                  <project path="$PROJECT_DIR$/libs/immaculate/wrapper" />
-                  <project path="$PROJECT_DIR$/libs/immaculate/wrapper/eclipse-jdt" />
-                  <project path="$PROJECT_DIR$/libs/immaculate/wrapper/google-java-format" />
-                  <project path="$PROJECT_DIR$/libs/immaculate/wrapper/palantir-java-format" />
-                </projects>
-              </build>
-            </builds>
-          </compositeBuild>
-        </compositeConfiguration>
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
         <option name="gradleJvm" value="jbr-25" />
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/libs/immaculate" />
-            <option value="$PROJECT_DIR$/libs/immaculate/wrapper" />
-            <option value="$PROJECT_DIR$/libs/immaculate/wrapper/eclipse-jdt" />
-            <option value="$PROJECT_DIR$/libs/immaculate/wrapper/google-java-format" />
-            <option value="$PROJECT_DIR$/libs/immaculate/wrapper/palantir-java-format" />
           </set>
         </option>
       </GradleProjectSettings>

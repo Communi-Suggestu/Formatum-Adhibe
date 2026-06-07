@@ -7,6 +7,7 @@ plugins {
 repositories {
     mavenLocal()
     mavenCentral()
+    gradlePluginPortal()
 }
 
 tableau {
@@ -38,7 +39,7 @@ allprojects {Project project ->
 }
 
 dependencies {
-    implementation 'dev.lukebemish:immaculate'
+    implementation libs.immaculate
     implementation 'org.yaml:snakeyaml:2.2'
 
     testImplementation platform('org.junit:junit-bom:6.0.0')

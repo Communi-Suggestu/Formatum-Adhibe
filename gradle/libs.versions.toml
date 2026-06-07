@@ -1,8 +1,13 @@
 [versions]
 tableau="0.0.94"
 foojay="1.+"
+immaculate="0.2.+"
 
 [plugins]
 tableau-maven-publishing = { id = "com.ldtteam.tableau.maven-publishing", version.ref = "tableau" }
 tableau-common = { id = "com.ldtteam.tableau.common", version.ref = "tableau" }
 foojay = { id = "org.gradle.toolchains.foojay-resolver-convention", version.ref = "foojay" }
+
+[libraries]
+immaculate = { group = "dev.lukebemish", name = "immaculate", version.ref = "immaculate" }
+
