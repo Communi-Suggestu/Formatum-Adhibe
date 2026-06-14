@@ -8,7 +8,8 @@ public record ImportOrderGeneratedStepSpec(
         List<String> groups,
         boolean separated,
         String option,
-        boolean sortStaticImportsAlphabetically
+        boolean sortStaticImportsAlphabetically,
+        String message
 ) implements GeneratedImmaculateStepSpec {
     @Override
     public GeneratedStepKind kind() {

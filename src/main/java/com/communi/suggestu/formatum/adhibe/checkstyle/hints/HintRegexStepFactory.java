@@ -20,7 +20,7 @@ public final class HintRegexStepFactory {
                 flags |= Pattern.DOTALL;
             }
             Pattern pattern = Pattern.compile(resolution.hint().find(), flags);
-            steps.add(new HintRegexStep(resolution.module().path(), pattern, resolution.hint().replace()));
+            steps.add(new HintRegexStep(resolution.module().path(), pattern, resolution.hint().replace(), resolution.module().message().orElse(null)));
         }
         return List.copyOf(steps);
     }

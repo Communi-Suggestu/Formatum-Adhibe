@@ -6,5 +6,10 @@ public sealed interface GeneratedImmaculateStepSpec permits ImportOrderGenerated
     String sourceModulePath();
 
     GeneratedStepKind kind();
+
+    /**
+     * The checkstyle message associated with this step, or {@code null} if not available.
+     */
+    String message();
 }
 

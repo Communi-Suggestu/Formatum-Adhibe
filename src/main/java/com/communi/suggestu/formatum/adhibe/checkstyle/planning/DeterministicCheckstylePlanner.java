@@ -53,7 +53,7 @@ public final class DeterministicCheckstylePlanner {
 
     private GeneratedImmaculateStepSpec planSingle(CheckstyleModuleSpec module, String prefix, int stepIndex, int inheritedTabWidth) {
         return switch (module.name()) {
-            case "NewlineAtEndOfFile" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.ENSURE_TRAILING_NEWLINE);
+            case "NewlineAtEndOfFile" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.ENSURE_TRAILING_NEWLINE, module.message().orElse(null));
             case "RegexpSingleline" -> planRegexpSingleline(module, prefix, stepIndex);
             case "RegexpMultiline" -> planRegexpMultiline(module, prefix, stepIndex);
             case "RegexpSinglelineJava" -> planRegexpSinglelineJava(module, prefix, stepIndex, inheritedTabWidth);
@@ -65,7 +65,7 @@ public final class DeterministicCheckstylePlanner {
     private GeneratedImmaculateStepSpec planRegexpSingleline(CheckstyleModuleSpec module, String prefix, int stepIndex) {
         String format = module.property("format").orElse("");
         if ("\\s+$".equals(format)) {
-            return new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "TrailingWhitespace"), module.path(), GeneratedStepKind.TRIM_TRAILING_WHITESPACE);
+            return new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "TrailingWhitespace"), module.path(), GeneratedStepKind.TRIM_TRAILING_WHITESPACE, module.message().orElse(null));
         }
         return null;
     }
@@ -75,15 +75,15 @@ public final class DeterministicCheckstylePlanner {
         String normalized = format.replace("&lt;", "<");
         return switch (normalized) {
             case "\\n[\\t ]*\\r?\\n[\\t ]*\\r?\\n" ->
-                    new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "AdjacentBlankLines"), module.path(), GeneratedStepKind.COLLAPSE_CONSECUTIVE_BLANK_LINES);
+                    new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "AdjacentBlankLines"), module.path(), GeneratedStepKind.COLLAPSE_CONSECUTIVE_BLANK_LINES, module.message().orElse(null));
             case "\\{[\\t ]*\\r?\\n[\\t ]*\\r?\\n" ->
-                    new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "BlankLineAfterOpeningBrace"), module.path(), GeneratedStepKind.REMOVE_BLANK_LINE_AFTER_OPENING_BRACE);
+                    new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "BlankLineAfterOpeningBrace"), module.path(), GeneratedStepKind.REMOVE_BLANK_LINE_AFTER_OPENING_BRACE, module.message().orElse(null));
             case "\\n[\\t ]*\\r?\\n[\\t ]*\\}" ->
-                    new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "BlankLineBeforeClosingBrace"), module.path(), GeneratedStepKind.REMOVE_BLANK_LINE_BEFORE_CLOSING_BRACE);
+                    new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "BlankLineBeforeClosingBrace"), module.path(), GeneratedStepKind.REMOVE_BLANK_LINE_BEFORE_CLOSING_BRACE, module.message().orElse(null));
             case "(?<=\\n)([\\t]+)(?:[^/\\r\\n \\t][^\\r\\n]*|/[^/\\r\\n][^\\r\\n]*|[^/\\r\\n][^\\r\\n]*(\\r?\\n\\1//[^\\r\\n]*)+)\\r?\\n\\1(|(if|do|while|for|try)[^\\r\\n]+)\\{[\\t ]*\\r?\\n" ->
-                    new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "BlankLineBeforeIndentedBlock"), module.path(), GeneratedStepKind.INSERT_BLANK_LINE_BEFORE_INDENTED_BLOCK);
+                    new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "BlankLineBeforeIndentedBlock"), module.path(), GeneratedStepKind.INSERT_BLANK_LINE_BEFORE_INDENTED_BLOCK, module.message().orElse(null));
             case "(?<=\\n)([\\t]+)\\}\\r?\\n\\1(?:[^\\r\\n\\}cd]|c[^\\r\\na]|ca[^\\r\\ns]|d[^\\r\\ne]|de[^\\r\\nf])" ->
-                    new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "BlankLineAfterIndentedBlock"), module.path(), GeneratedStepKind.INSERT_BLANK_LINE_AFTER_INDENTED_BLOCK);
+                    new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, "BlankLineAfterIndentedBlock"), module.path(), GeneratedStepKind.INSERT_BLANK_LINE_AFTER_INDENTED_BLOCK, module.message().orElse(null));
             default -> null;
         };
     }
@@ -96,7 +96,7 @@ public final class DeterministicCheckstylePlanner {
         int tabWidth = module.property("tabWidth")
                 .map(Integer::parseInt)
                 .orElse(inheritedTabWidth);
-        return new LeadingWhitespaceToTabsGeneratedStepSpec(stepName(prefix, stepIndex, "LeadingSpacesToTabs"), module.path(), tabWidth);
+        return new LeadingWhitespaceToTabsGeneratedStepSpec(stepName(prefix, stepIndex, "LeadingSpacesToTabs"), module.path(), tabWidth, module.message().orElse(null));
     }
 
     private GeneratedImmaculateStepSpec planImportOrder(CheckstyleModuleSpec module, String prefix, int stepIndex) {
@@ -113,7 +113,7 @@ public final class DeterministicCheckstylePlanner {
         boolean separated = module.property("separated").map(Boolean::parseBoolean).orElse(false);
         String option = module.property("option").orElse("under").toLowerCase(Locale.ROOT);
         boolean sortStatic = module.property("sortStaticImportsAlphabetically").map(Boolean::parseBoolean).orElse(false);
-        return new ImportOrderGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), groups, separated, option, sortStatic);
+        return new ImportOrderGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), groups, separated, option, sortStatic, module.message().orElse(null));
     }
 
     private static String stepName(String prefix, int stepIndex, String stem) {

@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class FormatumAdhibeProjectPluginIntegrationTest
 {
     private static final Path REPOSITORY_CHECKSTYLE_CONFIG = Path.of("libs/checkstyle/checkstyle.xml");
-    private static final Path REPOSITORY_HINTS_FILE = Path.of("checkstyle-immaculate-hints.yaml");
+    private static final Path REPOSITORY_HINTS_FILE = Path.of("libs/checkstyle/checkstyle-immaculate-hints.yaml");
 
     @TempDir
     Path projectDirectory;

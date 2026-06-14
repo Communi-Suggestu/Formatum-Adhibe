@@ -4,6 +4,9 @@ import dev.lukebemish.immaculate.FileFormatter;
 import dev.lukebemish.immaculate.FormattingStep;
 
 import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public abstract class RemoveBlankLineBeforeClosingBraceStep extends FormattingStep {
     @Inject
@@ -12,9 +15,20 @@ public abstract class RemoveBlankLineBeforeClosingBraceStep extends FormattingSt
 
     @Override
     public FileFormatter formatter() {
-        return (fileName, text) -> TextFormattingUtils.normalizeNewlines(text)
-                .replaceAll("\\n[\\t ]*\\n([\\t ]*})", "\n$1");
+        return (fileName, text) -> {
+            List<String> lines = new ArrayList<>(Arrays.asList(TextFormattingUtils.normalizeNewlines(text).split("\n", -1)));
+            int i = 0;
+            while (i < lines.size() - 1) {
+                String current = lines.get(i);
+                String next = lines.get(i + 1);
+                if (current.isBlank() && next.stripLeading().startsWith("}")) {
+                    lines.remove(i);
+                    // do not advance i; check the previous line again
+                } else {
+                    i++;
+                }
+            }
+            return String.join("\n", lines);
+        };
     }
 }
-
-

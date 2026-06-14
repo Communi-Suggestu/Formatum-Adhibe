@@ -4,6 +4,7 @@ import com.communi.suggestu.formatum.adhibe.checkstyle.config.CheckstyleConfigPa
 import com.communi.suggestu.formatum.adhibe.checkstyle.config.CheckstyleModuleSpec;
 import com.communi.suggestu.formatum.adhibe.checkstyle.planning.DeterministicCheckstylePlanner;
 import com.communi.suggestu.formatum.adhibe.checkstyle.planning.GeneratedImmaculateStepSpec;
+import com.communi.suggestu.formatum.adhibe.checkstyle.planning.GeneratedStepKind;
 import com.communi.suggestu.formatum.adhibe.checkstyle.planning.ImportOrderGeneratedStepSpec;
 import com.communi.suggestu.formatum.adhibe.checkstyle.planning.LeadingWhitespaceToTabsGeneratedStepSpec;
 import com.communi.suggestu.formatum.adhibe.checkstyle.planning.SimpleGeneratedStepSpec;
@@ -20,11 +21,17 @@ import com.communi.suggestu.formatum.adhibe.formatting.steps.InsertBlankLineBefo
 import com.communi.suggestu.formatum.adhibe.formatting.steps.LeadingWhitespaceToTabsStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.RemoveBlankLineAfterOpeningBraceStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.RemoveBlankLineBeforeClosingBraceStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.TextFormattingUtils;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.TrimTrailingWhitespaceStep;
 import dev.lukebemish.immaculate.FileFormatter;
 import dev.lukebemish.immaculate.FormattingStep;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.problems.ProblemGroup;
+import org.gradle.api.problems.ProblemId;
+import org.gradle.api.problems.ProblemReporter;
+import org.gradle.api.problems.Problems;
+import org.gradle.api.problems.Severity;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
@@ -38,6 +45,36 @@ import java.util.ArrayList;
 import java.util.List;
 
 public abstract class CheckstyleDeterministicStep extends FormattingStep {
+
+    // ── Problem taxonomy ──────────────────────────────────────────────────────
+    private static final ProblemGroup FORMATTING_GROUP =
+            ProblemGroup.create("formatum-adhibe-formatting", "Formatum Adhibe Formatting");
+
+    private static final ProblemGroup HINTS_GROUP =
+            ProblemGroup.create("formatum-adhibe-hints", "Formatum Adhibe Hints", FORMATTING_GROUP);
+
+    private static final ProblemId ID_TRAILING_NEWLINE =
+            ProblemId.create("ensure-trailing-newline", "Missing trailing newline", FORMATTING_GROUP);
+    private static final ProblemId ID_TRAILING_WHITESPACE =
+            ProblemId.create("trim-trailing-whitespace", "Trailing whitespace", FORMATTING_GROUP);
+    private static final ProblemId ID_CONSECUTIVE_BLANK_LINES =
+            ProblemId.create("collapse-consecutive-blank-lines", "Consecutive blank lines", FORMATTING_GROUP);
+    private static final ProblemId ID_BLANK_AFTER_OPENING_BRACE =
+            ProblemId.create("remove-blank-line-after-opening-brace", "Blank line after opening brace", FORMATTING_GROUP);
+    private static final ProblemId ID_BLANK_BEFORE_CLOSING_BRACE =
+            ProblemId.create("remove-blank-line-before-closing-brace", "Blank line before closing brace", FORMATTING_GROUP);
+    private static final ProblemId ID_MISSING_BLANK_BEFORE_BLOCK =
+            ProblemId.create("insert-blank-line-before-indented-block", "Missing blank line before indented block", FORMATTING_GROUP);
+    private static final ProblemId ID_MISSING_BLANK_AFTER_BLOCK =
+            ProblemId.create("insert-blank-line-after-indented-block", "Missing blank line after indented block", FORMATTING_GROUP);
+    private static final ProblemId ID_LEADING_SPACES =
+            ProblemId.create("convert-leading-spaces-to-tabs", "Leading spaces instead of tabs", FORMATTING_GROUP);
+    private static final ProblemId ID_IMPORT_ORDER =
+            ProblemId.create("order-imports", "Incorrect import order", FORMATTING_GROUP);
+    private static final ProblemId ID_HINT =
+            ProblemId.create("hint-fix", "Formatting hint applied", HINTS_GROUP);
+    // ─────────────────────────────────────────────────────────────────────────
+
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
     public abstract RegularFileProperty getCheckstyleConfig();
@@ -63,16 +100,22 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
     @Inject
     protected abstract ObjectFactory getObjects();
 
+    @Inject
+    protected abstract Problems getProblems();
+
     @Override
     public FileFormatter formatter() {
         CheckstyleModuleSpec root = new CheckstyleConfigParser().parse(getCheckstyleConfig().get().getAsFile().toPath());
         String stepNamePrefix = getStepNamePrefix().getOrElse("checkstyle");
         var planningResult = new DeterministicCheckstylePlanner().plan(root, stepNamePrefix);
 
+        ProblemReporter reporter = getProblems().getReporter();
+
         List<FileFormatter> formatters = new ArrayList<>();
         int stepIndex = 0;
         for (GeneratedImmaculateStepSpec spec : planningResult.steps()) {
-            formatters.add(createFormatter(spec, stepIndex++));
+            FileFormatter inner = createFormatter(spec, stepIndex++);
+            formatters.add(withProblemReporting(inner, problemIdFor(spec.kind()), spec.message(), reporter));
         }
 
         if (getHintsFile().isPresent() && Files.exists(getHintsFile().get().getAsFile().toPath())) {
@@ -83,7 +126,7 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             }
             List<HintRegexStep> hintSteps = new HintRegexStepFactory().create(resolved, getFailOnHintConflicts().get());
             for (HintRegexStep step : hintSteps) {
-                formatters.add(step.formatter());
+                formatters.add(withProblemReporting(step.formatter(), ID_HINT, step.message(), reporter));
             }
         }
 
@@ -96,6 +139,52 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
                 }
             }
             return result;
+        };
+    }
+
+    /**
+     * Wraps {@code inner} so that every time the formatter changes the text, Gradle problem
+     * warnings are reported – one per affected line in the original text.
+     */
+    private static FileFormatter withProblemReporting(
+            FileFormatter inner,
+            ProblemId problemId,
+            String message,
+            ProblemReporter reporter) {
+        return (fileName, text) -> {
+            String result = inner.format(fileName, text);
+            if (result == null || result.equals(text)) {
+                return result;
+            }
+            List<Integer> changedLines = TextFormattingUtils.findChangedLineNumbers(text, result);
+            if (changedLines.isEmpty()) {
+                reporter.report(problemId, spec -> {
+                    spec.fileLocation(fileName).severity(Severity.WARNING);
+                    if (message != null) spec.contextualLabel(message);
+                });
+            } else {
+                for (int lineNum : changedLines) {
+                    reporter.report(problemId, spec -> {
+                        spec.lineInFileLocation(fileName, lineNum).severity(Severity.WARNING);
+                        if (message != null) spec.contextualLabel(message);
+                    });
+                }
+            }
+            return result;
+        };
+    }
+
+    private static ProblemId problemIdFor(GeneratedStepKind kind) {
+        return switch (kind) {
+            case ENSURE_TRAILING_NEWLINE -> ID_TRAILING_NEWLINE;
+            case TRIM_TRAILING_WHITESPACE -> ID_TRAILING_WHITESPACE;
+            case COLLAPSE_CONSECUTIVE_BLANK_LINES -> ID_CONSECUTIVE_BLANK_LINES;
+            case REMOVE_BLANK_LINE_AFTER_OPENING_BRACE -> ID_BLANK_AFTER_OPENING_BRACE;
+            case REMOVE_BLANK_LINE_BEFORE_CLOSING_BRACE -> ID_BLANK_BEFORE_CLOSING_BRACE;
+            case INSERT_BLANK_LINE_BEFORE_INDENTED_BLOCK -> ID_MISSING_BLANK_BEFORE_BLOCK;
+            case INSERT_BLANK_LINE_AFTER_INDENTED_BLOCK -> ID_MISSING_BLANK_AFTER_BLOCK;
+            case CONVERT_LEADING_SPACES_TO_TABS -> ID_LEADING_SPACES;
+            case ORDER_IMPORTS -> ID_IMPORT_ORDER;
         };
     }
 

@@ -3,7 +3,8 @@ package com.communi.suggestu.formatum.adhibe.checkstyle.planning;
 public record LeadingWhitespaceToTabsGeneratedStepSpec(
         String name,
         String sourceModulePath,
-        int tabWidth
+        int tabWidth,
+        String message
 ) implements GeneratedImmaculateStepSpec {
     @Override
     public GeneratedStepKind kind() {
