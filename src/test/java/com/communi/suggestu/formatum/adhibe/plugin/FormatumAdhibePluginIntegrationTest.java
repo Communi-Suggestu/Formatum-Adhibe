@@ -7,8 +7,6 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS;
@@ -17,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class FormatumAdhibePluginIntegrationTest {
     private static final Path REPOSITORY_CHECKSTYLE_CONFIG = Path.of("libs/checkstyle/checkstyle.xml");
+    private static final Path REPOSITORY_HINTS_FILE = Path.of("checkstyle-immaculate-hints.yaml");
 
     @TempDir
     Path projectDirectory;
@@ -197,7 +196,7 @@ class FormatumAdhibePluginIntegrationTest {
     @Test
     void pluginUsesRepositoryCheckstyleConfigAsComplianceTarget() throws IOException {
         Files.copy(REPOSITORY_CHECKSTYLE_CONFIG, projectDirectory.resolve("checkstyle.xml"));
-        Files.writeString(projectDirectory.resolve("checkstyle-immaculate-hints.yaml"), buildMatchXpathHintsYaml());
+        Files.copy(REPOSITORY_HINTS_FILE, projectDirectory.resolve("checkstyle-immaculate-hints.yaml"));
 
         Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
         Files.writeString(projectDirectory.resolve("build.gradle"), """
@@ -258,20 +257,6 @@ class FormatumAdhibePluginIntegrationTest {
                 .build();
 
         assertEquals(SUCCESS, Objects.requireNonNull(check.task(":javaImmaculateCheck")).getOutcome());
-    }
-
-    private static String buildMatchXpathHintsYaml() {
-        List<String> lines = new ArrayList<>();
-        lines.add("hints:");
-        for (int index = 0; index <= 10; index++) {
-            lines.add("  - id: compliance-matchxpath-" + index);
-            lines.add("    modulePath: Checker[0]/TreeWalker[0]/MatchXpath[" + index + "]");
-            lines.add("    find: '(?!)'");
-            lines.add("    replace: ''");
-            lines.add("    mode: AGGRESSIVE");
-        }
-        lines.add("");
-        return String.join("\n", lines);
     }
 }
 
