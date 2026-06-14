@@ -28,7 +28,7 @@ A compliance integration test typically:
 
 ```bash
 cd "/var/home/marchermans/IdeaProjects/FormatumAdhibe"
-./gradlew test --tests com.communi.suggestu.formatum.adhibe.plugin.FormatumAdhibePluginIntegrationTest
+./gradlew test --tests com.communi.suggestu.formatum.adhibe.plugin.FormatumAdhibeProjectPluginIntegrationTest
 ```
 
 If your environment reports a minimum required JDK that is newer than your current runtime, switch Gradle/JAVA_HOME to that JDK and rerun.

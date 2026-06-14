@@ -65,7 +65,7 @@ cd "/var/home/marchermans/IdeaProjects/FormatumAdhibe"
 
 ```bash
 cd "/var/home/marchermans/IdeaProjects/FormatumAdhibe"
-./gradlew test --tests com.communi.suggestu.formatum.adhibe.plugin.FormatumAdhibePluginIntegrationTest
+./gradlew test --tests com.communi.suggestu.formatum.adhibe.plugin.FormatumAdhibeProjectPluginIntegrationTest
 ```
 
 ## Docs
