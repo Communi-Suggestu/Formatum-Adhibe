@@ -146,6 +146,37 @@ final class JavaImportUsageAnalyzer {
             return super.visitIdentifier(node, unused);
         }
 
+        @Override
+        public Void visitVariable(com.sun.source.tree.VariableTree node, Void unused) {
+            Element element = trees.getElement(getCurrentPath());
+            if (element != null) {
+                try {
+                    javax.lang.model.type.TypeMirror type = element.asType();
+                    trackTypeMirror(type);
+                } catch (Exception ignored) {
+                    // type extraction failed, continue
+                }
+            }
+            return super.visitVariable(node, unused);
+        }
+
+        private void trackTypeMirror(javax.lang.model.type.TypeMirror type) {
+            if (type instanceof javax.lang.model.type.DeclaredType declared) {
+                Element typeElement = declared.asElement();
+                if (typeElement instanceof TypeElement te) {
+                    String target = te.getQualifiedName().toString();
+                    if (!target.isBlank()) {
+                        typeImportTargets.add(target);
+                        if (isTopLevel(te)) {
+                            String packageName = packageName(te);
+                            topLevelTypesByPackage.computeIfAbsent(packageName, ignored -> new LinkedHashSet<>()).add(target);
+                        }
+                    }
+                }
+            }
+        }
+
+
         private static boolean isStaticMember(Element element) {
             if (element == null) {
                 return false;
@@ -239,7 +270,3 @@ final class JavaImportUsageAnalyzer {
         }
     }
 }
-
-
-
-

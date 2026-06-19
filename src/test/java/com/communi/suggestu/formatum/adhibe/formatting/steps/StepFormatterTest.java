@@ -245,6 +245,42 @@ class StepFormatterTest {
     }
 
     @Test
+    void preservesImportsUsedInVariableDeclarations() {
+        CheckstyleImportLintStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
+        step.getAvoidStarImport().set(false);
+        step.getRemoveIllegalImports().set(false);
+        step.getIllegalClasses().set(java.util.List.of());
+        step.getIllegalPkgs().set(java.util.List.of());
+        step.getRemoveRedundantImports().set(false);
+        step.getRemoveUnusedImports().set(true);
+
+        String source = "package mod.chiselsandbits.api.util;\n\n"
+                + "import java.lang.reflect.Field;\n\n"
+                + "public class ReflectionUtils {\n"
+                + "\tpublic static void setField(final Object targetObject, final String fieldName, final Object value) {\n"
+                + "\t\ttry {\n"
+                + "\t\t\tField f = targetObject.getClass().getDeclaredField(fieldName);\n"
+                + "\t\t\tf.setAccessible(true);\n"
+                + "\t\t\tf.set(targetObject, value);\n"
+                + "\t\t} catch (NoSuchFieldException | IllegalAccessException e) {\n"
+                + "\t\t\tthrow new IllegalStateException(\"Failed to set value!\");\n"
+                + "\t\t}\n"
+                + "\t}\n\n"
+                + "\tpublic static Object getField(final Object target, final String name) {\n"
+                + "\t\ttry {\n"
+                + "\t\t\tField f = target.getClass().getDeclaredField(name);\n"
+                + "\t\t\tf.setAccessible(true);\n"
+                + "\t\t\treturn f.get(target);\n"
+                + "\t\t} catch (NoSuchFieldException | IllegalAccessException e) {\n"
+                + "\t\t\tthrow new IllegalStateException(\"Failed to get value!\");\n"
+                + "\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(source, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void removesUnusedExternalImportWhenClasspathIsAvailable(@TempDir Path tempDir) throws Exception {
         Path srcRoot = tempDir.resolve("src");
         Path clsRoot = tempDir.resolve("classes");
