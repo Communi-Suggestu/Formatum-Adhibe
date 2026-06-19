@@ -277,7 +277,7 @@ class StepFormatterTest {
                 + "\t}\n"
                 + "}\n";
 
-        assertEquals(source, step.formatter().format("Example.java", source));
+        assertEquals(source, step.formatter().format("ReflectionUtils.java", source));
     }
 
     @Test

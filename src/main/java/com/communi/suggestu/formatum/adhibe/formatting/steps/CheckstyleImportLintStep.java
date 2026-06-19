@@ -58,10 +58,10 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
 
     @Override
     public FileFormatter formatter() {
-        return (fileName, text) -> sanitizeImports(TextFormattingUtils.normalizeNewlines(text));
+        return (fileName, text) -> sanitizeImports(fileName, TextFormattingUtils.normalizeNewlines(text));
     }
 
-    private String sanitizeImports(String text) {
+    private String sanitizeImports(String fileName, String text) {
         List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
         int firstImport = -1;
         int lastImport = -1;
@@ -109,7 +109,7 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
         }
 
         JavaImportUsageAnalyzer.ImportUsage usage = JavaImportUsageAnalyzer
-                .analyze(text, getAnalysisClasspath().getFiles(), getAnalysisSourcepath().getFiles())
+                .analyze(text, fileName, getAnalysisClasspath().getFiles(), getAnalysisSourcepath().getFiles())
                 .orElse(JavaImportUsageAnalyzer.ImportUsage.unavailable());
         List<ImportLine> sanitized = applyRules(imports, packageName, usage);
 

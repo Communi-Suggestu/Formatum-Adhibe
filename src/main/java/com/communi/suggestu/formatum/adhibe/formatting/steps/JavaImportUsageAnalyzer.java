@@ -36,14 +36,14 @@ final class JavaImportUsageAnalyzer {
     private JavaImportUsageAnalyzer() {
     }
 
-    static Optional<ImportUsage> analyze(String sourceText, Set<File> classpath, Set<File> sourcepath) {
+    static Optional<ImportUsage> analyze(String sourceText, final String fileName, Set<File> classpath, Set<File> sourcepath) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
             return Optional.empty();
         }
 
         try {
-            JavaSource source = new JavaSource(sourceText);
+            JavaSource source = new JavaSource(sourceText, fileName);
             DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
             try (StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null)) {
                 if (classpath != null && !classpath.isEmpty()) {
@@ -259,8 +259,8 @@ final class JavaImportUsageAnalyzer {
     private static final class JavaSource extends SimpleJavaFileObject {
         private final String source;
 
-        private JavaSource(String source) {
-            super(URI.create("string:///FormatumAdhibeSnippet.java"), Kind.SOURCE);
+        private JavaSource(String source, final String fileName) {
+            super(URI.create("string:///%s".formatted(fileName)), Kind.SOURCE);
             this.source = source;
         }
 
