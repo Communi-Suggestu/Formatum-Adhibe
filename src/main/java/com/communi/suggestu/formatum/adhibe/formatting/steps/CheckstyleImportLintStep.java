@@ -8,6 +8,7 @@ import org.gradle.api.tasks.Input;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -16,12 +17,6 @@ import java.util.regex.Pattern;
 
 public abstract class CheckstyleImportLintStep extends FormattingStep {
     private static final Pattern IMPORT_PATTERN = Pattern.compile("^import\\s+(static\\s+)?([^;\\s]+)\\s*;(.*)$");
-    private static final Pattern IDENTIFIER_PATTERN = Pattern.compile("\\b[A-Za-z_][A-Za-z0-9_]*\\b");
-    private static final Set<String> COMMON_JAVA_UTIL_TYPES = Set.of(
-            "ArrayList", "Collection", "Collections", "Comparator", "Deque", "EnumSet", "HashMap",
-            "HashSet", "LinkedHashMap", "LinkedHashSet", "List", "Map", "Objects", "Optional", "Queue",
-            "Set", "SortedMap", "SortedSet", "TreeMap", "TreeSet"
-    );
 
     @Inject
     public CheckstyleImportLintStep() {
@@ -97,8 +92,9 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
             imports.add(new ImportLine(matcher.group(1) != null, matcher.group(2), matcher.group(3)));
         }
 
-        Set<String> usedIdentifiers = usedIdentifiers(lines, lastImport + 1);
-        List<ImportLine> sanitized = applyRules(imports, packageName, usedIdentifiers);
+        JavaImportUsageAnalyzer.ImportUsage usage = JavaImportUsageAnalyzer.analyze(text)
+                .orElse(JavaImportUsageAnalyzer.ImportUsage.unavailable());
+        List<ImportLine> sanitized = applyRules(imports, packageName, usage);
 
         if (sanitized.equals(imports)) {
             return text;
@@ -114,7 +110,7 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
         return String.join("\n", output);
     }
 
-    private List<ImportLine> applyRules(List<ImportLine> imports, String packageName, Set<String> usedIdentifiers) {
+    private List<ImportLine> applyRules(List<ImportLine> imports, String packageName, JavaImportUsageAnalyzer.ImportUsage usage) {
         LinkedHashSet<ImportLine> output = new LinkedHashSet<>();
         for (ImportLine importLine : imports) {
             if (getRemoveIllegalImports().get() && isIllegal(importLine)) {
@@ -125,7 +121,7 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
                 continue;
             }
 
-            if (getRemoveUnusedImports().get() && isUnused(importLine, usedIdentifiers)) {
+            if (getRemoveUnusedImports().get() && isUnused(importLine, usage)) {
                 continue;
             }
 
@@ -133,7 +129,7 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
                 if (isSafeStarRemoval(importLine, packageName)) {
                     continue;
                 }
-                List<ImportLine> expanded = expandKnownStar(importLine, usedIdentifiers);
+                List<ImportLine> expanded = expandStar(importLine, usage);
                 if (!expanded.isEmpty()) {
                     output.addAll(expanded);
                     continue;
@@ -168,12 +164,19 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
         return false;
     }
 
-    private boolean isUnused(ImportLine importLine, Set<String> usedIdentifiers) {
+    private boolean isUnused(ImportLine importLine, JavaImportUsageAnalyzer.ImportUsage usage) {
+        if (usage.isUnavailable()) {
+            return false;
+        }
         if (importLine.target().endsWith(".*")) {
             return false;
         }
-        String name = simpleName(importLine.target());
-        return !usedIdentifiers.contains(name);
+        if (importLine.staticImport()) {
+            String owner = packageOf(importLine.target());
+            String member = simpleName(importLine.target());
+            return !usage.usesStaticMemberImport(owner, member);
+        }
+        return !usage.usesTypeImport(importLine.target());
     }
 
     private boolean isSafeStarRemoval(ImportLine importLine, String currentPackage) {
@@ -184,124 +187,39 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
         return !currentPackage.isEmpty() && !importLine.staticImport() && packagePrefix.equals(currentPackage);
     }
 
-    private List<ImportLine> expandKnownStar(ImportLine importLine, Set<String> usedIdentifiers) {
-        if (importLine.staticImport()) {
+    private List<ImportLine> expandStar(ImportLine importLine, JavaImportUsageAnalyzer.ImportUsage usage) {
+        if (usage.isUnavailable()) {
             return List.of();
         }
-        String packagePrefix = importLine.target().substring(0, importLine.target().length() - 2);
-        if (!"java.util".equals(packagePrefix)) {
+        String starTarget = importLine.target().substring(0, importLine.target().length() - 2);
+        if (importLine.staticImport()) {
+            List<String> members = usage.usedStaticMembersOf(starTarget).stream()
+                    .sorted()
+                    .toList();
+            if (members.isEmpty()) {
+                return List.of();
+            }
+            List<ImportLine> expanded = new ArrayList<>();
+            for (String member : members) {
+                expanded.add(new ImportLine(true, starTarget + "." + member, importLine.trailing()));
+            }
+            return expanded;
+        }
+
+        List<String> usedTopLevelTypes = usage.usedTopLevelTypesInPackage(starTarget).stream()
+                .sorted(Comparator.naturalOrder())
+                .toList();
+        if (usedTopLevelTypes.isEmpty()) {
             return List.of();
         }
 
         List<ImportLine> expanded = new ArrayList<>();
-        for (String identifier : COMMON_JAVA_UTIL_TYPES) {
-            if (usedIdentifiers.contains(identifier)) {
-                expanded.add(new ImportLine(false, "java.util." + identifier, importLine.trailing()));
-            }
+        for (String target : usedTopLevelTypes) {
+            expanded.add(new ImportLine(false, target, importLine.trailing()));
         }
         return expanded;
     }
 
-    private static String stripStringsAndComments(String text) {
-        StringBuilder result = new StringBuilder(text.length());
-        boolean inLineComment = false;
-        boolean inBlockComment = false;
-        boolean inSingleQuote = false;
-        boolean inDoubleQuote = false;
-
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            char next = i + 1 < text.length() ? text.charAt(i + 1) : '\0';
-
-            if (inLineComment) {
-                if (c == '\n') {
-                    inLineComment = false;
-                    result.append(c);
-                } else {
-                    result.append(' ');
-                }
-                continue;
-            }
-
-            if (inBlockComment) {
-                if (c == '*' && next == '/') {
-                    inBlockComment = false;
-                    result.append("  ");
-                    i++;
-                } else {
-                    result.append(c == '\n' ? '\n' : ' ');
-                }
-                continue;
-            }
-
-            if (inSingleQuote) {
-                if (c == '\\') {
-                    result.append("  ");
-                    i++;
-                    continue;
-                }
-                if (c == '\'') {
-                    inSingleQuote = false;
-                }
-                result.append(' ');
-                continue;
-            }
-
-            if (inDoubleQuote) {
-                if (c == '\\') {
-                    result.append("  ");
-                    i++;
-                    continue;
-                }
-                if (c == '"') {
-                    inDoubleQuote = false;
-                }
-                result.append(' ');
-                continue;
-            }
-
-            if (c == '/' && next == '/') {
-                inLineComment = true;
-                result.append("  ");
-                i++;
-                continue;
-            }
-            if (c == '/' && next == '*') {
-                inBlockComment = true;
-                result.append("  ");
-                i++;
-                continue;
-            }
-            if (c == '\'') {
-                inSingleQuote = true;
-                result.append(' ');
-                continue;
-            }
-            if (c == '"') {
-                inDoubleQuote = true;
-                result.append(' ');
-                continue;
-            }
-
-            result.append(c);
-        }
-
-        return result.toString();
-    }
-
-    private static Set<String> usedIdentifiers(List<String> lines, int bodyStartIndex) {
-        if (bodyStartIndex >= lines.size()) {
-            return Set.of();
-        }
-        String body = String.join("\n", lines.subList(bodyStartIndex, lines.size()));
-        String scrubbed = stripStringsAndComments(body);
-        Matcher matcher = IDENTIFIER_PATTERN.matcher(scrubbed);
-        Set<String> identifiers = new LinkedHashSet<>();
-        while (matcher.find()) {
-            identifiers.add(matcher.group());
-        }
-        return identifiers;
-    }
 
     private static String packageOf(String importTarget) {
         int lastDot = importTarget.lastIndexOf('.');

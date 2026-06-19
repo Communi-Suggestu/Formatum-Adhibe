@@ -159,7 +159,60 @@ class StepFormatterTest {
         assertEquals(source, step.formatter().format("Example.java", source));
         assertEquals(sourceTwo, step.formatter().format("Example.java", sourceTwo));
     }
+
+    @Test
+    void keepsUsedImportsWhenRemovingUnusedImports() {
+        CheckstyleImportLintStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
+        step.getAvoidStarImport().set(false);
+        step.getRemoveIllegalImports().set(false);
+        step.getIllegalClasses().set(java.util.List.of());
+        step.getIllegalPkgs().set(java.util.List.of());
+        step.getRemoveRedundantImports().set(false);
+        step.getRemoveUnusedImports().set(true);
+
+        String source = "package test;\n\n"
+                + "import java.util.Map;\n"
+                + "import java.util.Map.Entry;\n\n"
+                + "class Example {\n"
+                + "\tprivate final Entry<String, String> entry;\n"
+                + "\tprivate final Map<String, String> map;\n\n"
+                + "\tExample(Entry<String, String> entry, Map<String, String> map) {\n"
+                + "\t\tthis.entry = entry;\n"
+                + "\t\tthis.map = map;\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(source, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void expandsWildcardImportsToAllUsedTypesAndStaticMembers() {
+        CheckstyleImportLintStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
+        step.getAvoidStarImport().set(true);
+        step.getRemoveIllegalImports().set(false);
+        step.getIllegalClasses().set(java.util.List.of());
+        step.getIllegalPkgs().set(java.util.List.of());
+        step.getRemoveRedundantImports().set(false);
+        step.getRemoveUnusedImports().set(false);
+
+        String source = "package test;\n\n"
+                + "import java.util.*;\n"
+                + "import static java.util.Collections.*;\n\n"
+                + "class Example {\n"
+                + "\tprivate final List<String> values = emptyList();\n"
+                + "\tprivate final Map<String, String> mappings = emptyMap();\n"
+                + "}\n";
+
+        String expected = "package test;\n\n"
+                + "import java.util.List;\n"
+                + "import java.util.Map;\n"
+                + "import static java.util.Collections.emptyList;\n"
+                + "import static java.util.Collections.emptyMap;\n\n"
+                + "class Example {\n"
+                + "\tprivate final List<String> values = emptyList();\n"
+                + "\tprivate final Map<String, String> mappings = emptyMap();\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
 }
-
-
-
