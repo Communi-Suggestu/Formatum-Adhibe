@@ -54,6 +54,9 @@ public abstract class CheckstyleNeedBracesStep extends FormattingStep {
                     String token = matcher.group(2);
                     String literalToken = "LITERAL_" + token.toUpperCase();
                     HeaderAndBody headerAndBody = splitConditionAndBody(matcher.group(3));
+                    if (!headerAndBody.conditionClosed()) {
+                        continue;
+                    }
                     if (enabledTokens.contains(literalToken) && !hasBodyBrace(headerAndBody.bodyRemainder())) {
                         i = wrapStatement(lines, i, matcher.group(1), token, headerAndBody.headerRemainder(), headerAndBody.bodyRemainder());
                         continue;
@@ -125,7 +128,7 @@ public abstract class CheckstyleNeedBracesStep extends FormattingStep {
     private static HeaderAndBody splitConditionAndBody(String remainder) {
         String trimmed = remainder.trim();
         if (!trimmed.startsWith("(")) {
-            return new HeaderAndBody("", trimmed);
+            return new HeaderAndBody("", trimmed, true);
         }
 
         int depth = 0;
@@ -138,12 +141,12 @@ public abstract class CheckstyleNeedBracesStep extends FormattingStep {
                 if (depth == 0) {
                     String header = trimmed.substring(0, i + 1).trim();
                     String body = trimmed.substring(i + 1).trim();
-                    return new HeaderAndBody(header, body);
+                    return new HeaderAndBody(header, body, true);
                 }
             }
         }
 
-        return new HeaderAndBody(trimmed, "");
+        return new HeaderAndBody(trimmed, "", false);
     }
 
     private static int nextStatementLine(List<String> lines, int from) {
@@ -165,7 +168,7 @@ public abstract class CheckstyleNeedBracesStep extends FormattingStep {
         return "for".equals(token) || "while".equals(token) || "do".equals(token);
     }
 
-    private record HeaderAndBody(String headerRemainder, String bodyRemainder) {
+    private record HeaderAndBody(String headerRemainder, String bodyRemainder, boolean conditionClosed) {
     }
 }
 

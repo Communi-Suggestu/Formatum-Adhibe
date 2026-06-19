@@ -131,6 +131,34 @@ class StepFormatterTest {
         String source = "if (ok) return;\n";
         assertEquals(source, step.formatter().format("Example.java", source));
     }
+
+    @Test
+    void doesNotCorruptMultilineIfConditionWhenApplyingNeedBraces() {
+        CheckstyleNeedBracesStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleNeedBracesStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("LITERAL_IF"));
+        step.getAllowSingleLineStatement().set(false);
+        step.getAllowEmptyLoopBody().set(false);
+
+        String source = "if (inAreaTarget.x() < 0 ||\n"
+                + "\tinAreaTarget.y() < 0 ||\n"
+                + "\tinAreaTarget.z() < 0 ||\n"
+                + "\tinAreaTarget.x() >= 1 ||\n"
+                + "\tinAreaTarget.y() >= 1 ||\n"
+                + "\tinAreaTarget.z() >= 1) {\n"
+                + "\tthrow new IllegalArgumentException(\"Target is not in the current area.\");\n"
+                + "}\n";
+
+        String sourceTwo = "\t\tif (Minecraft.getInstance().player != null && !Minecraft.getInstance().player.isSpectator()) {\n"
+            + "\t\t\tMeasurementRenderer.getInstance().renderMeasurements(\n"
+            + "\t\t}\n"
+            + "\t\t\t\tposeStack,\n"
+            + "\t\t\t\tbufferSource,\n"
+            + "\t\t\t\tpartialTickTime\n"
+            + "\t\t\t);";
+
+        assertEquals(source, step.formatter().format("Example.java", source));
+        assertEquals(sourceTwo, step.formatter().format("Example.java", sourceTwo));
+    }
 }
 
 
