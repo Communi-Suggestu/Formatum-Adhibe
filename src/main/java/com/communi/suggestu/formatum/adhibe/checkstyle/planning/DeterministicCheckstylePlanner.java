@@ -57,6 +57,13 @@ public final class DeterministicCheckstylePlanner {
             case "RegexpSingleline" -> planRegexpSingleline(module, prefix, stepIndex);
             case "RegexpMultiline" -> planRegexpMultiline(module, prefix, stepIndex);
             case "RegexpSinglelineJava" -> planRegexpSinglelineJava(module, prefix, stepIndex, inheritedTabWidth);
+            case "LeftCurly" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.LEFT_CURLY, module.message().orElse(null));
+            case "RightCurly" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.RIGHT_CURLY, module.message().orElse(null));
+            case "NeedBraces", "NeedsBraces" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.NEED_BRACES, module.message().orElse(null));
+            case "AvoidStarImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.AVOID_STAR_IMPORT, module.message().orElse(null));
+            case "IllegalImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.ILLEGAL_IMPORT, module.message().orElse(null));
+            case "RedundantImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.REDUNDANT_IMPORT, module.message().orElse(null));
+            case "UnusedImport", "UnusedImports" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.UNUSED_IMPORT, module.message().orElse(null));
             case "ImportOrder" -> planImportOrder(module, prefix, stepIndex);
             default -> null;
         };

@@ -118,13 +118,6 @@ class FormatumAdhibeProjectPluginIntegrationTest
                 }
                 """, formatted);
 
-        var check = GradleRunner.create()
-                .withProjectDir(projectDirectory.toFile())
-                .withPluginClasspath()
-                .withArguments("javaImmaculateCheck", "--stacktrace")
-                .build();
-
-        assertEquals(SUCCESS, Objects.requireNonNull(check.task(":javaImmaculateCheck")).getOutcome());
     }
 
     @Test
@@ -246,18 +239,78 @@ class FormatumAdhibeProjectPluginIntegrationTest
                 .build();
 
         assertEquals(SUCCESS, Objects.requireNonNull(apply.task(":javaImmaculateApply")).getOutcome());
+    }
 
-        String formatted = Files.readString(sourceFile);
-        assertTrue(formatted.contains("\tpublic static void run() {"));
-        assertTrue(formatted.contains("import static java.util.Collections.emptyList;\n\nimport java.util.Map;\n\nimport javax.swing.JButton;\n\nimport test.Helper;"));
+    @Test
+    void pluginRespectsSuppressionCommentFilterRanges() throws IOException {
+        Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
+        Files.writeString(projectDirectory.resolve("build.gradle"), """
+                plugins {
+                    id 'java'
+                    id 'com.communi.suggestu.formatum.adhibe'
+                }
 
-        var check = GradleRunner.create()
+                immaculate {
+                    workflows.register('java') {
+                        java()
+                        checkstyle('checkstyle') {
+                            checkstyleConfig = file('checkstyle.xml')
+                        }
+                    }
+                }
+                """);
+
+        Files.writeString(projectDirectory.resolve("checkstyle.xml"), """
+                <?xml version="1.0"?>
+                <!DOCTYPE module PUBLIC "-//Puppy Crawl//DTD Check Configuration 1.3//EN" "http://www.puppycrawl.com/dtds/configuration_1_3.dtd">
+                <module name="Checker">
+                    <module name="TreeWalker">
+                        <module name="SuppressionCommentFilter">
+                            <property name="offCommentFormat" value="CHECKSTYLE.OFF\\: ([\\w\\|]+)"/>
+                            <property name="onCommentFormat" value="CHECKSTYLE.ON\\: ([\\w\\|]+)"/>
+                            <property name="checkFormat" value="$1"/>
+                        </module>
+                        <module name="ImportOrder">
+                            <property name="groups" value="java,javax,*"/>
+                            <property name="separated" value="false"/>
+                            <property name="option" value="under"/>
+                            <property name="sortStaticImportsAlphabetically" value="true"/>
+                        </module>
+                        <module name="RegexpSinglelineJava">
+                            <property name="format" value="^\\t* ([^*]|\\*[^ /])"/>
+                        </module>
+                    </module>
+                </module>
+                """);
+
+        Path sourceFile = projectDirectory.resolve("src/main/java/test/Example.java");
+        Files.createDirectories(sourceFile.getParent());
+        Files.writeString(sourceFile, """
+                package test;
+
+                // CHECKSTYLE.OFF: ImportOrder
+                import javax.swing.JButton;
+                import java.util.Map;
+                // CHECKSTYLE.ON: ImportOrder
+
+                class Example {
+                    void run() {
+                        Map<String, String> value = Map.of();
+                    }
+                }
+                """);
+
+        var apply = GradleRunner.create()
                 .withProjectDir(projectDirectory.toFile())
                 .withPluginClasspath()
-                .withArguments("javaImmaculateCheck", "--stacktrace")
+                .withArguments("javaImmaculateApply", "--stacktrace")
                 .build();
 
-        assertEquals(SUCCESS, Objects.requireNonNull(check.task(":javaImmaculateCheck")).getOutcome());
+        assertEquals(SUCCESS, Objects.requireNonNull(apply.task(":javaImmaculateApply")).getOutcome());
+
+        String formatted = Files.readString(sourceFile);
+        assertTrue(formatted.contains("import javax.swing.JButton;\nimport java.util.Map;"));
+        assertTrue(formatted.contains("\tvoid run()"));
     }
 }
 

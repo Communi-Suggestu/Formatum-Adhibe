@@ -1,0 +1,113 @@
+package com.communi.suggestu.formatum.adhibe.formatting.steps;
+
+import dev.lukebemish.immaculate.FileFormatter;
+import dev.lukebemish.immaculate.FormattingStep;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Input;
+
+import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.List;
+
+public abstract class CheckstyleRightCurlyStep extends FormattingStep {
+    @Inject
+    public CheckstyleRightCurlyStep() {
+    }
+
+    @Input
+    public abstract Property<String> getOption();
+
+    @Override
+    public FileFormatter formatter() {
+        return (fileName, text) -> applyRightCurlyPolicy(TextFormattingUtils.normalizeNewlines(text));
+    }
+
+    private String applyRightCurlyPolicy(String text) {
+        List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
+        String option = getOption().getOrElse("same");
+        return switch (option) {
+            case "alone" -> enforceAlone(lines, false);
+            case "alone_or_singleline" -> enforceAlone(lines, true);
+            default -> enforceSame(lines);
+        };
+    }
+
+    private String enforceSame(List<String> lines) {
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            int closeIndex = line.indexOf('}');
+            if (closeIndex < 0) {
+                continue;
+            }
+
+            String before = line.substring(0, closeIndex).trim();
+            String after = line.substring(closeIndex + 1).trim();
+            if (!before.isEmpty()) {
+                continue;
+            }
+
+            if (!after.isEmpty() && !startsWithContinuationKeyword(after)) {
+                String indent = line.substring(0, closeIndex);
+                lines.set(i, indent + "}");
+                lines.add(i + 1, indent + after);
+                i++;
+                continue;
+            }
+
+            if (after.isEmpty() && i + 1 < lines.size()) {
+                String next = lines.get(i + 1).trim();
+                if (startsWithContinuationKeyword(next)) {
+                    lines.set(i, line.substring(0, closeIndex) + "} " + next);
+                    lines.remove(i + 1);
+                }
+            }
+        }
+
+        return String.join("\n", lines);
+    }
+
+    private String enforceAlone(List<String> lines, boolean allowSingleLineBlock) {
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            int closeIndex = line.indexOf('}');
+            if (closeIndex < 0) {
+                continue;
+            }
+
+            if (allowSingleLineBlock && line.contains("{") && closeIndex > line.indexOf('{')) {
+                continue;
+            }
+
+            String before = line.substring(0, closeIndex);
+            String after = line.substring(closeIndex + 1).trim();
+            if (!after.isEmpty()) {
+                lines.set(i, before + "}");
+                lines.add(i + 1, indentation(before) + after);
+                i++;
+                continue;
+            }
+
+            if (!before.trim().isEmpty()) {
+                lines.set(i, indentation(before) + "}");
+            }
+        }
+
+        return String.join("\n", lines);
+    }
+
+    private static boolean startsWithContinuationKeyword(String text) {
+        return text.startsWith("else")
+                || text.startsWith("catch")
+                || text.startsWith("finally")
+                || text.startsWith("while");
+    }
+
+    private static String indentation(String text) {
+        int i = 0;
+        while (i < text.length() && Character.isWhitespace(text.charAt(i))) {
+            i++;
+        }
+        return text.substring(0, i);
+    }
+}
+
