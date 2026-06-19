@@ -30,6 +30,7 @@ import com.communi.suggestu.formatum.adhibe.formatting.steps.TextFormattingUtils
 import com.communi.suggestu.formatum.adhibe.formatting.steps.TrimTrailingWhitespaceStep;
 import dev.lukebemish.immaculate.FileFormatter;
 import dev.lukebemish.immaculate.FormattingStep;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.problems.ProblemGroup;
@@ -40,9 +41,11 @@ import org.gradle.api.problems.Severity;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
+import org.gradle.api.tasks.Classpath;
 
 import javax.inject.Inject;
 import java.nio.file.Files;
@@ -119,6 +122,16 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
 
     @Input
     public abstract Property<Boolean> getFailOnHintConflicts();
+
+    @Classpath
+    @InputFiles
+    @Optional
+    public abstract ConfigurableFileCollection getAnalysisClasspath();
+
+    @InputFiles
+    @Optional
+    @PathSensitive(PathSensitivity.RELATIVE)
+    public abstract ConfigurableFileCollection getAnalysisSourcepath();
 
     @Inject
     protected abstract ObjectFactory getObjects();
@@ -305,6 +318,8 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
         step.getIllegalPkgs().convention(List.of());
         step.getRemoveRedundantImports().convention(false);
         step.getRemoveUnusedImports().convention(false);
+        step.getAnalysisClasspath().from(getAnalysisClasspath());
+        step.getAnalysisSourcepath().from(getAnalysisSourcepath());
         customizer.accept(step);
         return step.formatter();
     }

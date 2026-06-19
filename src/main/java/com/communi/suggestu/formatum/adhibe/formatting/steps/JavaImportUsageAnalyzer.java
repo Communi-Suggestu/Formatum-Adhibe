@@ -10,10 +10,17 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 import java.net.URI;
+import java.io.StringWriter;
+import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -29,7 +36,7 @@ final class JavaImportUsageAnalyzer {
     private JavaImportUsageAnalyzer() {
     }
 
-    static Optional<ImportUsage> analyze(String sourceText) {
+    static Optional<ImportUsage> analyze(String sourceText, Set<File> classpath, Set<File> sourcepath) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
             return Optional.empty();
@@ -37,27 +44,39 @@ final class JavaImportUsageAnalyzer {
 
         try {
             JavaSource source = new JavaSource(sourceText);
-            JavacTask task = (JavacTask) compiler.getTask(
-                    null,
-                    null,
-                    null,
-                    List.of("-proc:none"),
-                    null,
-                    List.of(source)
-            );
+            DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+            try (StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null)) {
+                if (classpath != null && !classpath.isEmpty()) {
+                    fileManager.setLocation(StandardLocation.CLASS_PATH, classpath);
+                }
+                if (sourcepath != null && !sourcepath.isEmpty()) {
+                    fileManager.setLocation(StandardLocation.SOURCE_PATH, sourcepath);
+                }
+                JavacTask task = (JavacTask) compiler.getTask(
+                        new StringWriter(),
+                        fileManager,
+                        diagnostics,
+                        List.of("-proc:none"),
+                        null,
+                        List.of(source)
+                );
 
-            CompilationUnitTree unit = first(task.parse());
-            if (unit == null) {
-                return Optional.empty();
+                CompilationUnitTree unit = first(task.parse());
+                if (unit == null) {
+                    return Optional.empty();
+                }
+
+                // Attribution makes Trees#getElement available for identifiers.
+                task.analyze();
+                if (hasErrors(diagnostics)) {
+                    return Optional.empty();
+                }
+
+                Trees trees = Trees.instance(task);
+                UsageScanner scanner = new UsageScanner(trees);
+                scanner.scan(unit, null);
+                return Optional.of(scanner.toImportUsage());
             }
-
-            // Attribution makes Trees#getElement available for identifiers.
-            task.analyze();
-
-            Trees trees = Trees.instance(task);
-            UsageScanner scanner = new UsageScanner(trees);
-            scanner.scan(unit, null);
-            return Optional.of(scanner.toImportUsage());
         } catch (Exception ignored) {
             return Optional.empty();
         }
@@ -68,6 +87,15 @@ final class JavaImportUsageAnalyzer {
             return tree;
         }
         return null;
+    }
+
+    private static boolean hasErrors(DiagnosticCollector<JavaFileObject> diagnostics) {
+        for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
+            if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String packageName(TypeElement typeElement) {
@@ -175,9 +203,6 @@ final class JavaImportUsageAnalyzer {
             return UNAVAILABLE;
         }
 
-        boolean available() {
-            return available;
-        }
 
         boolean isUnavailable() {
             return !available;

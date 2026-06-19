@@ -2,6 +2,11 @@ package com.communi.suggestu.formatum.adhibe.formatting.steps;
 
 import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import javax.tools.ToolProvider;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -78,13 +83,15 @@ class StepFormatterTest {
                 + "import test.Helper;\n\n"
                 + "class Example {\n"
                 + "\tMap<String, String> values = java.util.Collections.emptyMap();\n"
-                + "}\n";
+                + "}\n\n"
+                + "class Helper {}\n";
 
         String expected = "package test;\n\n"
                 + "import java.util.Map;\n\n"
                 + "class Example {\n"
                 + "\tMap<String, String> values = java.util.Collections.emptyMap();\n"
-                + "}\n";
+                + "}\n\n"
+                + "class Helper {}\n";
 
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
@@ -211,6 +218,79 @@ class StepFormatterTest {
                 + "class Example {\n"
                 + "\tprivate final List<String> values = emptyList();\n"
                 + "\tprivate final Map<String, String> mappings = emptyMap();\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void keepsImportsWhenTypeResolutionFails() {
+        CheckstyleImportLintStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
+        step.getAvoidStarImport().set(false);
+        step.getRemoveIllegalImports().set(false);
+        step.getIllegalClasses().set(java.util.List.of());
+        step.getIllegalPkgs().set(java.util.List.of());
+        step.getRemoveRedundantImports().set(false);
+        step.getRemoveUnusedImports().set(true);
+
+        String source = "package test;\n\n"
+                + "import com.example.project.IAreaAccessor;\n\n"
+                + "class BlockNeighborhoodEntry {\n"
+                + "\tpublic IAreaAccessor getAccessor() {\n"
+                + "\t\treturn null;\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(source, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void removesUnusedExternalImportWhenClasspathIsAvailable(@TempDir Path tempDir) throws Exception {
+        Path srcRoot = tempDir.resolve("src");
+        Path clsRoot = tempDir.resolve("classes");
+        Files.createDirectories(srcRoot.resolve("com/example/project"));
+        Files.createDirectories(clsRoot);
+
+        Path usedType = srcRoot.resolve("com/example/project/IAreaAccessor.java");
+        Path unusedType = srcRoot.resolve("com/example/project/UnusedType.java");
+        Files.writeString(usedType, "package com.example.project; public interface IAreaAccessor {}\n");
+        Files.writeString(unusedType, "package com.example.project; public final class UnusedType {}\n");
+
+        int compileResult = ToolProvider.getSystemJavaCompiler().run(
+                null,
+                null,
+                null,
+                "-d", clsRoot.toString(),
+                usedType.toString(),
+                unusedType.toString()
+        );
+        assertEquals(0, compileResult);
+
+        CheckstyleImportLintStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
+        step.getAvoidStarImport().set(false);
+        step.getRemoveIllegalImports().set(false);
+        step.getIllegalClasses().set(java.util.List.of());
+        step.getIllegalPkgs().set(java.util.List.of());
+        step.getRemoveRedundantImports().set(false);
+        step.getRemoveUnusedImports().set(true);
+        step.getAnalysisClasspath().from(clsRoot.toFile());
+        step.getAnalysisSourcepath().from(srcRoot.toFile());
+
+        String source = "package test;\n\n"
+                + "import com.example.project.IAreaAccessor;\n"
+                + "import com.example.project.UnusedType;\n\n"
+                + "class BlockNeighborhoodEntry {\n"
+                + "\tpublic IAreaAccessor getAccessor() {\n"
+                + "\t\treturn null;\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "package test;\n\n"
+                + "import com.example.project.IAreaAccessor;\n\n"
+                + "class BlockNeighborhoodEntry {\n"
+                + "\tpublic IAreaAccessor getAccessor() {\n"
+                + "\t\treturn null;\n"
+                + "\t}\n"
                 + "}\n";
 
         assertEquals(expected, step.formatter().format("Example.java", source));

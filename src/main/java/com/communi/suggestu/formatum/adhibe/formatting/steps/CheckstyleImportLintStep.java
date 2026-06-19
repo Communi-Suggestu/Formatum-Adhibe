@@ -2,9 +2,15 @@ package com.communi.suggestu.formatum.adhibe.formatting.steps;
 
 import dev.lukebemish.immaculate.FileFormatter;
 import dev.lukebemish.immaculate.FormattingStep;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.Optional;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
@@ -39,6 +45,16 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
 
     @Input
     public abstract Property<Boolean> getRemoveUnusedImports();
+
+    @Classpath
+    @InputFiles
+    @Optional
+    public abstract ConfigurableFileCollection getAnalysisClasspath();
+
+    @InputFiles
+    @Optional
+    @PathSensitive(PathSensitivity.RELATIVE)
+    public abstract ConfigurableFileCollection getAnalysisSourcepath();
 
     @Override
     public FileFormatter formatter() {
@@ -92,7 +108,8 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
             imports.add(new ImportLine(matcher.group(1) != null, matcher.group(2), matcher.group(3)));
         }
 
-        JavaImportUsageAnalyzer.ImportUsage usage = JavaImportUsageAnalyzer.analyze(text)
+        JavaImportUsageAnalyzer.ImportUsage usage = JavaImportUsageAnalyzer
+                .analyze(text, getAnalysisClasspath().getFiles(), getAnalysisSourcepath().getFiles())
                 .orElse(JavaImportUsageAnalyzer.ImportUsage.unavailable());
         List<ImportLine> sanitized = applyRules(imports, packageName, usage);
 

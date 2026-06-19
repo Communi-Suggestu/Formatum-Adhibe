@@ -4,6 +4,7 @@ import com.communi.suggestu.formatum.adhibe.checkstyle.hints.FixMode;
 import dev.lukebemish.immaculate.FormattingWorkflow;
 import groovy.lang.Closure;
 import org.gradle.api.Project;
+import org.gradle.api.tasks.SourceSetContainer;
 
 public final class WorkflowCheckstyleAction {
     private final Project project;
@@ -33,6 +34,10 @@ public final class WorkflowCheckstyleAction {
         step.getFixMode().convention(FixMode.SAFE);
         step.getFailOnUnmatchedHints().convention(true);
         step.getFailOnHintConflicts().convention(true);
+
+        SourceSetContainer sourceSets = project.getExtensions().getByType(SourceSetContainer.class);
+        step.getAnalysisClasspath().from(project.provider(() -> sourceSets.stream().map(it -> it.getCompileClasspath().plus(it.getOutput())).toList()));
+        step.getAnalysisSourcepath().from(project.provider(() -> sourceSets.stream().map(it -> it.getAllJava().getSourceDirectories()).toList()));
     }
 }
 
