@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StepFormatterTest {
     private static final String STEP_NAME = "testStep";
@@ -242,6 +243,40 @@ class StepFormatterTest {
                 + "}\n";
 
         assertEquals(source, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void writesAnalyzerDiagnosticsWhenTypeResolutionFails() throws Exception {
+        var project = ProjectBuilder.builder().build();
+        CheckstyleImportLintStep step = project.getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
+        step.getAvoidStarImport().set(false);
+        step.getRemoveIllegalImports().set(false);
+        step.getIllegalClasses().set(java.util.List.of());
+        step.getIllegalPkgs().set(java.util.List.of());
+        step.getRemoveRedundantImports().set(false);
+        step.getRemoveUnusedImports().set(true);
+
+        String source = "package test;\n\n"
+                + "import com.example.project.IAreaAccessor;\n\n"
+                + "class BlockNeighborhoodEntry {\n"
+                + "\tpublic IAreaAccessor getAccessor() {\n"
+                + "\t\treturn null;\n"
+                + "\t}\n"
+                + "}\n";
+
+        step.formatter().format("Example.java", source);
+
+        Path diagnosticsPath = project.getLayout()
+                .getBuildDirectory()
+                .dir("formatting/parsing/errors")
+                .get()
+                .getAsFile()
+                .toPath()
+                .resolve("Example.java");
+
+        assertTrue(Files.exists(diagnosticsPath));
+        String diagnostics = Files.readString(diagnosticsPath);
+        assertTrue(diagnostics.contains("ERROR:"));
     }
 
     @Test

@@ -21,9 +21,11 @@ import javax.tools.ToolProvider;
 import java.net.URI;
 import java.io.StringWriter;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -36,10 +38,10 @@ final class JavaImportUsageAnalyzer {
     private JavaImportUsageAnalyzer() {
     }
 
-    static Optional<ImportUsage> analyze(String sourceText, final String fileName, Set<File> classpath, Set<File> sourcepath) {
+    static AnalysisResult analyze(String sourceText, final String fileName, Set<File> classpath, Set<File> sourcepath) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
-            return Optional.empty();
+            return AnalysisResult.unavailable(List.of("ERROR: No system Java compiler is available in this runtime."));
         }
 
         try {
@@ -63,22 +65,23 @@ final class JavaImportUsageAnalyzer {
 
                 CompilationUnitTree unit = first(task.parse());
                 if (unit == null) {
-                    return Optional.empty();
+                    return AnalysisResult.unavailable(formatDiagnostics(diagnostics));
                 }
 
                 // Attribution makes Trees#getElement available for identifiers.
                 task.analyze();
+                List<String> formattedDiagnostics = formatDiagnostics(diagnostics);
                 if (hasErrors(diagnostics)) {
-                    return Optional.empty();
+                    return AnalysisResult.unavailable(formattedDiagnostics);
                 }
 
                 Trees trees = Trees.instance(task);
                 UsageScanner scanner = new UsageScanner(trees);
                 scanner.scan(unit, null);
-                return Optional.of(scanner.toImportUsage());
+                return AnalysisResult.available(scanner.toImportUsage(), formattedDiagnostics);
             }
-        } catch (Exception ignored) {
-            return Optional.empty();
+        } catch (Exception exception) {
+            return AnalysisResult.unavailable(List.of("ERROR: Exception while analyzing imports: " + exception.getMessage()));
         }
     }
 
@@ -96,6 +99,23 @@ final class JavaImportUsageAnalyzer {
             }
         }
         return false;
+    }
+
+    private static List<String> formatDiagnostics(DiagnosticCollector<JavaFileObject> diagnostics) {
+        List<String> lines = new ArrayList<>();
+        for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
+            String sourceName = diagnostic.getSource() == null ? "<unknown>" : diagnostic.getSource().getName();
+            lines.add(diagnostic.getKind()
+                    + ": "
+                    + sourceName
+                    + ":"
+                    + diagnostic.getLineNumber()
+                    + ":"
+                    + diagnostic.getColumnNumber()
+                    + " "
+                    + diagnostic.getMessage(Locale.ROOT));
+        }
+        return List.copyOf(lines);
     }
 
     private static String packageName(TypeElement typeElement) {
@@ -253,6 +273,36 @@ final class JavaImportUsageAnalyzer {
 
         Set<String> usedStaticMembersOf(String ownerType) {
             return staticMembersByOwner.getOrDefault(ownerType, Set.of());
+        }
+    }
+
+    static final class AnalysisResult {
+        private final ImportUsage usage;
+        private final List<String> diagnostics;
+
+        private AnalysisResult(ImportUsage usage, List<String> diagnostics) {
+            this.usage = usage;
+            this.diagnostics = diagnostics;
+        }
+
+        static AnalysisResult available(ImportUsage usage, List<String> diagnostics) {
+            return new AnalysisResult(usage, diagnostics == null ? List.of() : List.copyOf(diagnostics));
+        }
+
+        static AnalysisResult unavailable(List<String> diagnostics) {
+            return new AnalysisResult(null, diagnostics == null ? List.of() : List.copyOf(diagnostics));
+        }
+
+        Optional<ImportUsage> usage() {
+            return Optional.ofNullable(usage);
+        }
+
+        List<String> diagnostics() {
+            return diagnostics;
+        }
+
+        boolean hasErrors() {
+            return usage == null && !diagnostics.isEmpty();
         }
     }
 

@@ -3,6 +3,7 @@ package com.communi.suggestu.formatum.adhibe.formatting.steps;
 import dev.lukebemish.immaculate.FileFormatter;
 import dev.lukebemish.immaculate.FormattingStep;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Classpath;
@@ -13,6 +14,9 @@ import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 
 import javax.inject.Inject;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -27,6 +31,9 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
     @Inject
     public CheckstyleImportLintStep() {
     }
+
+    @Inject
+    protected abstract ProjectLayout getProjectLayout();
 
     @Input
     public abstract Property<Boolean> getAvoidStarImport();
@@ -108,8 +115,13 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
             imports.add(new ImportLine(matcher.group(1) != null, matcher.group(2), matcher.group(3)));
         }
 
-        JavaImportUsageAnalyzer.ImportUsage usage = JavaImportUsageAnalyzer
-                .analyze(text, fileName, getAnalysisClasspath().getFiles(), getAnalysisSourcepath().getFiles())
+        JavaImportUsageAnalyzer.AnalysisResult analysis = JavaImportUsageAnalyzer
+                .analyze(text, fileName, getAnalysisClasspath().getFiles(), getAnalysisSourcepath().getFiles());
+        if (analysis.hasErrors()) {
+            writeDiagnosticsFile(fileName, analysis.diagnostics());
+        }
+        JavaImportUsageAnalyzer.ImportUsage usage = analysis
+                .usage()
                 .orElse(JavaImportUsageAnalyzer.ImportUsage.unavailable());
         List<ImportLine> sanitized = applyRules(imports, packageName, usage);
 
@@ -250,6 +262,25 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
 
     private String render(ImportLine importLine) {
         return "import " + (importLine.staticImport() ? "static " : "") + importLine.target() + ";" + importLine.trailing();
+    }
+
+    private void writeDiagnosticsFile(String fileName, List<String> diagnostics) {
+        try {
+            Path root = getProjectLayout().getBuildDirectory().dir("formatting/parsing/errors").get().getAsFile().toPath();
+            Files.createDirectories(root);
+            Path target = root.resolve(sanitizeFileName(fileName));
+            String content = String.join("\n", diagnostics) + "\n";
+            Files.writeString(target, content);
+        } catch (IOException ignored) {
+            // Keep formatting non-fatal if diagnostics logging cannot be written.
+        }
+    }
+
+    private static String sanitizeFileName(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return "unknown.java";
+        }
+        return fileName.replace('\\', '_').replace('/', '_');
     }
 
     private record ImportLine(boolean staticImport, String target, String trailing) {
