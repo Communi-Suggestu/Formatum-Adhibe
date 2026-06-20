@@ -319,6 +319,67 @@ class FormatumAdhibeProjectPluginIntegrationTest
     }
 
     @Test
+    void pluginKeepsIndentationForWrappedMethodChainsAndClosingBraces() throws IOException {
+        Files.copy(REPOSITORY_CHECKSTYLE_CONFIG, projectDirectory.resolve("checkstyle.xml"));
+        Files.copy(REPOSITORY_HINTS_FILE, projectDirectory.resolve("checkstyle-immaculate-hints.yaml"));
+
+        Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
+        Files.writeString(projectDirectory.resolve("build.gradle"), """
+                plugins {
+                    id 'java'
+                    id 'com.communi.suggestu.formatum.adhibe'
+                }
+
+                immaculate {
+                    workflows.register('java') {
+                        java()
+                        checkstyle('checkstyle') {
+                            checkstyleConfig = file('checkstyle.xml')
+                            hintsFile = file('checkstyle-immaculate-hints.yaml')
+                            fixMode = com.communi.suggestu.formatum.adhibe.checkstyle.hints.FixMode.AGGRESSIVE
+                            failOnUnmatchedHints = true
+                        }
+                    }
+                }
+                """);
+
+        Path sourceFile = projectDirectory.resolve("src/main/java/test/Example.java");
+        Files.createDirectories(sourceFile.getParent());
+        Files.writeString(sourceFile, String.join("\n",
+                "package test;",
+                "",
+                "class Example {",
+                "\tvoid run() {",
+                "\t\tStringBuilder builder = new StringBuilder();",
+                "\t\tbuilder",
+                "\t\t\t.append(\" t\")",
+                "\t\t\t.append(\"s \")",
+                "\t\t\t.toString();",
+                "\t}",
+                "}",
+                ""
+        ));
+
+        var apply = GradleRunner.create()
+                .withProjectDir(projectDirectory.toFile())
+                .withPluginClasspath()
+                .withArguments("javaImmaculateApply", "--stacktrace")
+                .build();
+
+        assertEquals(SUCCESS, Objects.requireNonNull(apply.task(":javaImmaculateApply")).getOutcome());
+
+        String formatted = Files.readString(sourceFile);
+        assertTrue(formatted.contains("\n\t\t\t.append(\" t\")"), formatted);
+        assertTrue(formatted.contains("\n\t\t\t.append(\"s \")"), formatted);
+        assertTrue(formatted.contains("\n\t\t\t.toString();"), formatted);
+        assertTrue(formatted.contains("\n\t}\n}"), formatted);
+
+        // Guard against indentation-stripping regression.
+        assertTrue(!formatted.contains("\n.pattern("), formatted);
+        assertTrue(!formatted.contains("\n }\n }"), formatted);
+    }
+
+    @Test
     void pluginRespectsSuppressionCommentFilterRanges() throws IOException {
         Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
         Files.writeString(projectDirectory.resolve("build.gradle"), """

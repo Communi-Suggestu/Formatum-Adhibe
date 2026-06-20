@@ -22,9 +22,9 @@ public abstract class CheckstyleNoWhitespaceBeforeStep extends FormattingStep {
 
     private String apply(String text) {
         return text
-                .replaceAll("[ \\t]+([,;\\)\\]\\}])", "$1")
-                .replaceAll("[ \\t]+\\.", ".")
-                .replaceAll("\\.\\s+", ".");
+                .replaceAll("(\\S)[ \\t]+([,;\\)\\]\\}])", "$1$2")
+                .replaceAll("(\\S)[ \\t]+([,;\\)\\]\\}])", "$1$2")
+                .replaceAll("(\\S)[ \\t]+\\.", "$1.");
     }
 }
 

@@ -184,8 +184,17 @@ class StepFormatterTest {
         step.getTokens().set(java.util.List.of("COMMA", "SEMI", "DOT"));
 
         String source = "value . map ( a , b ) ;\n";
-        String expected = "value.map ( a, b);\n";
+        String expected = "value. map ( a, b);\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void noWhitespaceBeforeDoesNotStripIndentForLeadingDotOrStandaloneClosingBrace() {
+        CheckstyleNoWhitespaceBeforeStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleNoWhitespaceBeforeStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("DOT", "RCURLY"));
+
+        String source = "class Example {\n\tvoid run() {\n\t\tbuilder\n\t\t\t.method()\n\t\t\t.chain();\n\t}\n}\n";
+        assertEquals(source, step.formatter().format("Example.java", source));
     }
 
     @Test
