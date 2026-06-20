@@ -53,7 +53,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
 
             int effectiveIndent = determineIndent(trimmed, blockIndent, parenContexts, braceIndentStack, continuationTabs, caseOffset);
             lines.set(i, "\t".repeat(Math.max(0, effectiveIndent)) + trimmed);
-            updateBraceIndentStack(braceIndentStack, trimmed, effectiveIndent);
+            updateBraceIndentStack(braceIndentStack, trimmed, effectiveIndent, blockIndent, parenContexts);
             blockIndent = updateBlockIndent(blockIndent, trimmed);
             updateParenContexts(parenContexts, trimmed, effectiveIndent);
         }
@@ -142,9 +142,16 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         return indent;
     }
 
-    private static void updateBraceIndentStack(Deque<Integer> braceIndentStack, String line, int appliedIndentTabs) {
+    private static void updateBraceIndentStack(
+            Deque<Integer> braceIndentStack,
+            String line,
+            int appliedIndentTabs,
+            int blockIndent,
+            Deque<ParenContext> parenContexts
+    ) {
         boolean inString = false;
         boolean inChar = false;
+        String trimmed = line.trim();
         for (int i = 0; i < line.length(); i++) {
             char c = line.charAt(i);
             char next = i + 1 < line.length() ? line.charAt(i + 1) : '\0';
@@ -173,9 +180,17 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
                     braceIndentStack.pop();
                 }
             } else if (c == '{') {
-                braceIndentStack.push(appliedIndentTabs);
+                int anchorIndent = appliedIndentTabs;
+                if (!parenContexts.isEmpty() && !shouldUseAppliedBraceIndent(trimmed)) {
+                    anchorIndent = blockIndent;
+                }
+                braceIndentStack.push(anchorIndent);
             }
         }
+    }
+
+    private static boolean shouldUseAppliedBraceIndent(String trimmed) {
+        return trimmed.startsWith("new ") || trimmed.startsWith(".") || trimmed.contains("->");
     }
 
     private static void updateParenContexts(Deque<ParenContext> parenContexts, String line, int anchorIndentTabs) {

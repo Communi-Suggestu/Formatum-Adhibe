@@ -51,6 +51,9 @@ public abstract class CheckstyleOperatorWrapStep extends FormattingStep {
             if (trimmed.isEmpty() || containsLikelyStringOrComment(line)) {
                 continue;
             }
+            if (trimmed.endsWith("->") || trimmed.contains(" -> ")) {
+                continue;
+            }
 
             String matchedOperator = trailingOperator(trimmed);
             if (matchedOperator == null) {
@@ -80,6 +83,10 @@ public abstract class CheckstyleOperatorWrapStep extends FormattingStep {
             String line = lines.get(i);
             String trimmed = line.trim();
             if (trimmed.isEmpty() || containsLikelyStringOrComment(line)) {
+                continue;
+            }
+            if (trimmed.startsWith(">") && i > 0 && lines.get(i - 1).trim().endsWith("-")) {
+                // Don't split a lambda arrow across lines as "-" and ">".
                 continue;
             }
 

@@ -58,7 +58,7 @@ public abstract class CheckstyleSeparatorWrapStep extends FormattingStep {
         for (int i = 0; i < lines.size() - 1; i++) {
             String line = lines.get(i);
             String trimmed = line.trim();
-            if (trimmed.isEmpty() || !trimmed.endsWith(token)) {
+            if (trimmed.isEmpty() || !trimmed.endsWith(token) || isCommentLine(trimmed) || line.contains("//")) {
                 continue;
             }
 
@@ -118,6 +118,10 @@ public abstract class CheckstyleSeparatorWrapStep extends FormattingStep {
             }
         }
         return -1;
+    }
+
+    private static boolean isCommentLine(String trimmed) {
+        return trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*");
     }
 }
 

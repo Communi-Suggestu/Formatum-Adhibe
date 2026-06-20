@@ -381,6 +381,86 @@ class FormatumAdhibeProjectPluginIntegrationTest
     }
 
     @Test
+    void pluginKeepsIndentationInsideAnonymousConsumerAcceptMethod() throws IOException {
+        Files.copy(REPOSITORY_CHECKSTYLE_CONFIG, projectDirectory.resolve("checkstyle.xml"));
+        Files.copy(REPOSITORY_HINTS_FILE, projectDirectory.resolve("checkstyle-immaculate-hints.yaml"));
+
+        Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
+        Files.writeString(projectDirectory.resolve("build.gradle"), """
+                plugins {
+                    id 'java'
+                    id 'com.communi.suggestu.formatum.adhibe'
+                }
+
+                immaculate {
+                    workflows.register('java') {
+                        java()
+                        checkstyle('checkstyle') {
+                            checkstyleConfig = file('checkstyle.xml')
+                            hintsFile = file('checkstyle-immaculate-hints.yaml')
+                            fixMode = com.communi.suggestu.formatum.adhibe.checkstyle.hints.FixMode.AGGRESSIVE
+                            failOnUnmatchedHints = true
+                        }
+                    }
+                }
+                """);
+
+        Path sourceFile = projectDirectory.resolve("src/main/java/test/Example.java");
+        Files.createDirectories(sourceFile.getParent());
+        Files.writeString(sourceFile, String.join("\n",
+                "package test;",
+                "",
+                "import java.util.function.Consumer;",
+                "",
+                "class Example {",
+                "\tvoid run()",
+                "",
+                "\t{",
+                "\t\tConsumer<String> consumer = new Consumer<>()",
+                "",
+                "\t\t{",
+                "\t\t\t@Override",
+                "\t\t\tpublic void accept(final String value)",
+                "",
+                "\t\t\t{",
+                "\t\t\t\tif (value != null)",
+                "",
+                "\t\t\t\t{",
+                "\t\t\t\t\tSystem.out.println(value);",
+                "\t\t\t\t}",
+                "\t\t\t}",
+                "\t\t};",
+                "\t\tconsumer.accept(\"x\");",
+                "\t}",
+                "}",
+                ""
+        ));
+
+        var apply = GradleRunner.create()
+                .withProjectDir(projectDirectory.toFile())
+                .withPluginClasspath()
+                .withArguments("javaImmaculateApply", "--stacktrace")
+                .build();
+
+        assertEquals(SUCCESS, Objects.requireNonNull(apply.task(":javaImmaculateApply")).getOutcome());
+
+        String formatted = Files.readString(sourceFile);
+        assertTrue(formatted.contains("\tvoid run() {"), formatted);
+        assertTrue(formatted.contains("\t\tConsumer<String> consumer = new Consumer<>() {"), formatted);
+        assertTrue(formatted.contains("\t\t\t@Override"), formatted);
+        assertTrue(formatted.contains("\t\t\tpublic void accept(final String value) {"), formatted);
+        assertTrue(formatted.contains("\t\t\t\tif (value != null) {"), formatted);
+        assertTrue(formatted.contains("\t\t\t\t\tSystem.out.println(value);"), formatted);
+        assertTrue(formatted.contains("\t\t\t\t}"), formatted);
+        assertTrue(formatted.contains("\t\t\t}"), formatted);
+        assertTrue(formatted.contains("\t\t};"), formatted);
+
+        // Guard against the previous accept-block deindent/clobber pattern.
+        assertFalse(formatted.contains("\npublic void accept"), formatted);
+        assertFalse(formatted.contains("\nif (value != null)\n\n\t\t\t\t{"), formatted);
+    }
+
+    @Test
     void pluginRespectsSuppressionCommentFilterRanges() throws IOException {
         Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
         Files.writeString(projectDirectory.resolve("build.gradle"), """

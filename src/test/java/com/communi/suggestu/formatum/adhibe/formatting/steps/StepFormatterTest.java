@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StepFormatterTest {
@@ -174,7 +175,21 @@ class StepFormatterTest {
         step.getLineWrappingIndentation().set(8);
 
         String source = "class Example {\n    public void run() {\n        if (a\n                && b) {\n            call();\n        }\n    }\n}\n";
-        String expected = "class Example {\n\tpublic void run() {\n\t\tif (a\n\t\t\t\t&& b) {\n\t\t\tcall();\n\t\t\t\t}\n\t}\n}\n";
+        String expected = "class Example {\n\tpublic void run() {\n\t\tif (a\n\t\t\t\t&& b) {\n\t\t\tcall();\n\t\t}\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void keepsMethodAndIfClosingBracesAtStructuralIndent() {
+        CheckstyleIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleIndentationStep.class, STEP_NAME);
+        step.getBasicOffset().set(4);
+        step.getCaseIndent().set(0);
+        step.getThrowsIndent().set(4);
+        step.getArrayInitIndent().set(4);
+        step.getLineWrappingIndentation().set(8);
+
+        String source = "class Example {\n\tvoid run(\n\t\t\tfinal int a,\n\t\t\tfinal int b) {\n\t\tif (a\n\t\t\t\t&& b) {\n\t\t\tcall();\n\t\t\t\t}\n\t\t\t\t}\n}\n";
+        String expected = "class Example {\n\tvoid run(\n\t\t\tfinal int a,\n\t\t\tfinal int b) {\n\t\tif (a\n\t\t\t\t&& b) {\n\t\t\tcall();\n\t\t}\n\t}\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 
@@ -280,6 +295,46 @@ class StepFormatterTest {
         String source = "if(flag==true){\n\tint value=1;\n}\n";
         String expected = "if(flag == true){\n\tint value = 1;\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void doesNotSplitCompoundAssignmentOperators() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("ASSIGN", "PLUS_ASSIGN", "MINUS_ASSIGN"));
+
+        String source = "int x = 0;\nx += 1;\ny -= 2;\n";
+        assertEquals(source, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void operatorWrapDoesNotSplitLambdaArrow() {
+        CheckstyleOperatorWrapStep stepNl = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleOperatorWrapStep.class, STEP_NAME);
+        stepNl.getOption().set("nl");
+        stepNl.getTokens().set(java.util.List.of("LAMBDA", "MINUS", "GT"));
+
+        CheckstyleOperatorWrapStep stepEol = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleOperatorWrapStep.class, STEP_NAME);
+        stepEol.getOption().set("eol");
+        stepEol.getTokens().set(java.util.List.of("LAMBDA", "MINUS", "GT"));
+
+        String source = "list.stream()\n\t.map(v -> v + 1)\n\t.forEach(v -> call(v));\n";
+        String formattedNl = stepNl.formatter().format("Example.java", source);
+        String formattedEol = stepEol.formatter().format("Example.java", source);
+
+        assertTrue(formattedNl.contains("->"), formattedNl);
+        assertTrue(formattedEol.contains("->"), formattedEol);
+        assertFalse(formattedNl.contains("- >"), formattedNl);
+        assertFalse(formattedEol.contains("- >"), formattedEol);
+        assertFalse(formattedNl.contains("-\n"), formattedNl);
+    }
+
+    @Test
+    void separatorWrapDoesNotMoveDotFromTrailingComment() {
+        CheckstyleSeparatorWrapStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleSeparatorWrapStep.class, STEP_NAME);
+        step.getOption().set("nl");
+        step.getTokens().set(java.util.List.of("DOT"));
+
+        String source = "int value = 0; // keep this sentence.\nvalue++;\n";
+        assertEquals(source, step.formatter().format("Example.java", source));
     }
 
     @Test
