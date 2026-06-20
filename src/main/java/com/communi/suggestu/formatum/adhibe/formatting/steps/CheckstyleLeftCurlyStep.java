@@ -41,16 +41,13 @@ public abstract class CheckstyleLeftCurlyStep extends FormattingStep {
                 continue;
             }
 
-            int previousIndex = i - 1;
-            while (previousIndex >= 0 && lines.get(previousIndex).trim().isEmpty()) {
-                previousIndex--;
-            }
+            int previousIndex = findAttachCandidateIndex(lines, i - 1);
             if (previousIndex < 0) {
                 continue;
             }
 
             String previous = lines.get(previousIndex);
-            String previousTrimmed = previous.stripTrailing();
+            String previousTrimmed = stripInlineComment(previous).stripTrailing();
             if (previousTrimmed.isEmpty() || previousTrimmed.endsWith("{")) {
                 continue;
             }
@@ -59,11 +56,45 @@ public abstract class CheckstyleLeftCurlyStep extends FormattingStep {
                 continue;
             }
 
-            lines.set(previousIndex, previousTrimmed + " {");
+            lines.set(previousIndex, insertBraceBeforeInlineComment(previous));
             lines.subList(previousIndex + 1, i + 1).clear();
             i = previousIndex;
         }
         return String.join("\n", lines);
+    }
+
+    private static int findAttachCandidateIndex(List<String> lines, int start) {
+        for (int i = start; i >= 0; i--) {
+            String line = lines.get(i);
+            if (line.trim().isEmpty()) {
+                continue;
+            }
+            String codePart = stripInlineComment(line).trim();
+            if (codePart.isEmpty()) {
+                continue;
+            }
+            return i;
+        }
+        return -1;
+    }
+
+    private static String insertBraceBeforeInlineComment(String line) {
+        int commentIndex = line.indexOf("//");
+        if (commentIndex < 0) {
+            return line.stripTrailing() + " {";
+        }
+
+        String beforeComment = line.substring(0, commentIndex).stripTrailing();
+        String comment = line.substring(commentIndex).stripLeading();
+        return beforeComment + " { " + comment;
+    }
+
+    private static String stripInlineComment(String line) {
+        int commentIndex = line.indexOf("//");
+        if (commentIndex < 0) {
+            return line;
+        }
+        return line.substring(0, commentIndex);
     }
 
     private String moveLeftCurlyToNewLine(List<String> lines) {

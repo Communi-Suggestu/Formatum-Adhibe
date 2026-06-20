@@ -122,6 +122,17 @@ class StepFormatterTest {
     }
 
     @Test
+    void enforcesLeftCurlyPolicyBeforeInlineComment() {
+        CheckstyleLeftCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleLeftCurlyStep.class, STEP_NAME);
+        step.getOption().set("eol");
+        step.getIgnoreEnums().set(true);
+
+        String source = "catch (Exception ignored) // should never happen;\n\n{\n}\n";
+        String expected = "catch (Exception ignored) { // should never happen;\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void enforcesRightCurlySamePolicy() {
         CheckstyleRightCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleRightCurlyStep.class, STEP_NAME);
         step.getOption().set("same");
