@@ -172,6 +172,45 @@ class StepFormatterTest {
     }
 
     @Test
+    void doesNotMangleNestedIfWhenBodyStartsWithMultilineIfHeader() {
+        CheckstyleNeedBracesStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleNeedBracesStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("LITERAL_IF"));
+        step.getAllowSingleLineStatement().set(false);
+        step.getAllowEmptyLoopBody().set(false);
+
+        String source = "package mod.chiselsandbits.logic;\n\n"
+                + "import java.util.List;\n\n"
+                + "import mod.chiselsandbits.api.chiseling.eligibility.IEligibilityAnalysisResult;\n"
+                + "import mod.chiselsandbits.api.chiseling.eligibility.IEligibilityManager;\n"
+                + "import mod.chiselsandbits.api.config.ICommonConfiguration;\n"
+                + "import mod.chiselsandbits.item.MagnifyingGlassItem;\n\n"
+                + "import net.minecraft.ChatFormatting;\n"
+                + "import net.minecraft.client.Minecraft;\n"
+                + "import net.minecraft.network.chat.Component;\n"
+                + "import net.minecraft.world.item.BlockItem;\n"
+                + "import net.minecraft.world.item.ItemStack;\n\n"
+                + "public class MagnifyingGlassTooltipHandler\n"
+                + "{\n"
+                + "\tpublic static void onItemTooltip(final ItemStack itemStack, final List<Component> toolTips)\n\n"
+                + "\t{\n"
+                + "\t\tif (Minecraft.getInstance().player != null && ICommonConfiguration.getInstance().getEnableHelp().get())\n"
+                + "\t\t\tif (Minecraft.getInstance().player.getMainHandItem().getItem() instanceof MagnifyingGlassItem\n"
+                + "\t\t\t\t  || Minecraft.getInstance().player.getOffhandItem().getItem() instanceof MagnifyingGlassItem)\n\n"
+                + "\t\t\t\tif (itemStack.getItem() instanceof BlockItem) {\n"
+                + "\t\t\t\t\tfinal IEligibilityAnalysisResult result = IEligibilityManager.getInstance().analyse(itemStack);\n\n"
+                + "\t\t\t\t\ttoolTips.add(\n"
+                + "\t\t\t\t\t\tresult.canBeChiseled() || result.isAlreadyChiseled() ?\n"
+                + "\t\t\t\t\t\t  result.getReason().withStyle(ChatFormatting.GREEN) :\n"
+                + "\t\t\t\t\t\t  result.getReason().withStyle(ChatFormatting.RED)\n"
+                + "\t\t\t\t\t);\n"
+                + "\t\t\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(source, step.formatter().format("MagnifyingGlassTooltipHandler.java", source));
+    }
+
+    @Test
     void keepsUsedImportsWhenRemovingUnusedImports() {
         CheckstyleImportLintStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
         step.getAvoidStarImport().set(false);

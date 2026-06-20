@@ -111,6 +111,10 @@ public abstract class CheckstyleNeedBracesStep extends FormattingStep {
         }
 
         String statement = lines.get(statementIndex);
+        if (startsWithUnclosedControlCondition(statement)) {
+            // Avoid inserting braces around a statement whose control header continues on later lines.
+            return index;
+        }
         if (statement.trim().startsWith("{")) {
             return index;
         }
@@ -166,6 +170,15 @@ public abstract class CheckstyleNeedBracesStep extends FormattingStep {
 
     private static boolean isLoopToken(String token) {
         return "for".equals(token) || "while".equals(token) || "do".equals(token);
+    }
+
+    private static boolean startsWithUnclosedControlCondition(String line) {
+        Matcher matcher = IF_FOR_WHILE_PATTERN.matcher(line);
+        if (!matcher.find()) {
+            return false;
+        }
+        HeaderAndBody headerAndBody = splitConditionAndBody(matcher.group(3));
+        return !headerAndBody.conditionClosed();
     }
 
     private record HeaderAndBody(String headerRemainder, String bodyRemainder, boolean conditionClosed) {
