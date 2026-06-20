@@ -184,9 +184,6 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
         if (importLine.target().endsWith(".*")) {
             return false;
         }
-        if (!importLine.staticImport() && importLine.target().startsWith("java.lang.")) {
-            return true;
-        }
         if (!currentPackage.isEmpty() && !importLine.staticImport()) {
             return packageOf(importLine.target()).equals(currentPackage);
         }
