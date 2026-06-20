@@ -23,12 +23,9 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
     private String apply(String text) {
         String result = text;
         result = result.replaceAll("(?<![<>=!])=(?!=)", " = ");
-        result = result.replaceAll("(?<![<])<(?![<=])", " < ");
-        result = result.replaceAll("(?<![>])>(?![>=])", " > ");
         result = result.replaceAll("(?<![!])!=(?!=)", " != ");
         result = result.replaceAll("==", " == ");
-        result = result.replaceAll("[ \\t]{2,}", " ");
-        result = result.replaceAll(" ?\\{", " {");
+        result = result.replaceAll(" {2,}", " ");
         return result;
     }
 }

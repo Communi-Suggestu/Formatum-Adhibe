@@ -163,7 +163,7 @@ class StepFormatterTest {
         step.getArrayInitIndent().set(4);
         step.getLineWrappingIndentation().set(8);
 
-        String source = "class Example {\npublic void run() {\nif (a\n&& b) {\ncall();\n}\n}\n}\n";
+        String source = "class Example {\n    public void run() {\n        if (a\n                && b) {\n            call();\n        }\n    }\n}\n";
         String expected = "class Example {\n\tpublic void run() {\n\t\tif (a\n\t\t\t\t&& b) {\n\t\t\tcall();\n\t\t}\n\t}\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
@@ -214,7 +214,7 @@ class StepFormatterTest {
         step.getTokens().set(java.util.List.of("ASSIGN", "EQUAL", "LITERAL_IF"));
 
         String source = "if(flag==true){\n\tint value=1;\n}\n";
-        String expected = "if(flag == true) {\n\tint value = 1;\n}\n";
+        String expected = "if(flag == true){\n\tint value = 1;\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 
@@ -242,6 +242,35 @@ class StepFormatterTest {
 
         String source = "class Example {\n\tvoid run() {\n// comment\n\t\tcall();\n\t}\n}\n";
         String expected = "class Example {\n\tvoid run() {\n\t// comment\n\t\tcall();\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void parenPadDoesNotCollapseMultilineMethodSignatures() {
+        CheckstyleParenPadStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleParenPadStep.class, STEP_NAME);
+        step.getOption().set("nospace");
+
+        String source = "void test(\n\tfinal int a,\n\tfinal int b\n) {\n}\n";
+        assertEquals(source, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void whitespaceAroundDoesNotCollapseTabIndentation() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("ASSIGN"));
+
+        String source = "class Example {\n\t\tint value=1;\n}\n";
+        String expected = "class Example {\n\t\tint value = 1;\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void whitespaceAroundDoesNotInsertSpacesInsideGenericTypeArguments() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("ASSIGN", "LT", "GT"));
+
+        String source = "List<String> values=List.of();\n";
+        String expected = "List<String> values = List.of();\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 

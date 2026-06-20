@@ -17,8 +17,8 @@ public abstract class CheckstyleGenericWhitespaceStep extends FormattingStep {
 
     private String apply(String text) {
         return text
-                .replaceAll("<\\s+", "<")
-                .replaceAll("\\s+>", ">")
+                .replaceAll("< +", "<")
+                .replaceAll(" +>", ">")
                 .replaceAll(",(?=\\S)", ", ")
                 .replaceAll("\\s+,", ",");
     }

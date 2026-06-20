@@ -238,6 +238,87 @@ class FormatumAdhibeProjectPluginIntegrationTest
     }
 
     @Test
+    void pluginKeepsComplexWrappedCodeStructureWhenApplyingRepositoryConfig() throws IOException {
+        Files.copy(REPOSITORY_CHECKSTYLE_CONFIG, projectDirectory.resolve("checkstyle.xml"));
+        Files.copy(REPOSITORY_HINTS_FILE, projectDirectory.resolve("checkstyle-immaculate-hints.yaml"));
+
+        Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
+        Files.writeString(projectDirectory.resolve("build.gradle"), """
+                plugins {
+                    id 'java'
+                    id 'com.communi.suggestu.formatum.adhibe'
+                }
+
+                immaculate {
+                    workflows.register('java') {
+                        java()
+                        checkstyle('checkstyle') {
+                            checkstyleConfig = file('checkstyle.xml')
+                            hintsFile = file('checkstyle-immaculate-hints.yaml')
+                            fixMode = com.communi.suggestu.formatum.adhibe.checkstyle.hints.FixMode.AGGRESSIVE
+                            failOnUnmatchedHints = true
+                        }
+                    }
+                }
+                """);
+
+        Path sourceFile = projectDirectory.resolve("src/main/java/test/Example.java");
+        Files.createDirectories(sourceFile.getParent());
+        Files.writeString(sourceFile, """
+                package test;
+
+                import java.util.List;
+
+                public class Example {
+                	private Example()
+
+                	{
+                	}
+
+                	public static List<String> compress(
+                	  final List<String> input)
+
+                	{
+                		if (input != null)
+                			input.forEach(
+                			  value -> {
+                				  if (value != null)
+                					  if (value.length() > 1
+                						|| value.startsWith("x"))
+                						  System.out.println(
+                							value
+                						  );
+                			  }
+                			);
+
+                		return input;
+                	}
+                }
+                """);
+
+        var apply = GradleRunner.create()
+                .withProjectDir(projectDirectory.toFile())
+                .withPluginClasspath()
+                .withArguments("javaImmaculateApply", "--stacktrace")
+                .build();
+
+        assertEquals(SUCCESS, Objects.requireNonNull(apply.task(":javaImmaculateApply")).getOutcome());
+
+        String formatted = Files.readString(sourceFile);
+        assertTrue(formatted.contains("public static List<String> compress("), formatted);
+        assertTrue(formatted.matches("(?s).*public static List<String> compress\\(\\n\\s*final List<String> input\\).*"), formatted);
+        assertTrue(formatted.contains("if (value.length()"), formatted);
+        assertTrue(formatted.contains("value.startsWith(\"x\")"), formatted);
+        assertTrue(formatted.matches("(?s).*System\\.out\\.println\\(\\n\\s*value\\n\\s*\\);.*"), formatted);
+        assertTrue(formatted.matches("(?s).*\\n\\s*return input;\\n.*"), formatted);
+
+        // Guard against previously reported structural clobbering symptoms.
+        assertTrue(!formatted.contains("List <String>"), formatted);
+        assertTrue(!formatted.contains("\n {"), formatted);
+        assertTrue(!formatted.contains("\n);\n\n\t\treturn input;"), formatted);
+    }
+
+    @Test
     void pluginRespectsSuppressionCommentFilterRanges() throws IOException {
         Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
         Files.writeString(projectDirectory.resolve("build.gradle"), """

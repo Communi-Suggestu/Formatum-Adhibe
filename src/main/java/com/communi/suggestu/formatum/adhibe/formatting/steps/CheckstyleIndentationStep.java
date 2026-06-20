@@ -47,6 +47,9 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
                 continue;
             }
 
+            boolean startsWithTab = !line.isEmpty() && line.charAt(0) == '\t';
+            boolean hasLeadingSpaces = !line.isEmpty() && line.charAt(0) == ' ';
+
             int effectiveIndent = blockIndent;
             if (startsWithClosingBrace(trimmed)) {
                 effectiveIndent = Math.max(0, effectiveIndent - 1);
@@ -61,7 +64,10 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
                 effectiveIndent = Math.max(0, effectiveIndent - 1 + caseOffset);
             }
 
-            lines.set(i, "\t".repeat(Math.max(0, effectiveIndent)) + trimmed);
+            // Keep existing tab-indented lines untouched to avoid reflowing multiline constructs.
+            if (hasLeadingSpaces && !startsWithTab) {
+                lines.set(i, "\t".repeat(Math.max(0, effectiveIndent)) + trimmed);
+            }
 
             blockIndent = updateBlockIndent(blockIndent, trimmed);
             parenthesisDepth = updateParenthesisDepth(parenthesisDepth, trimmed);

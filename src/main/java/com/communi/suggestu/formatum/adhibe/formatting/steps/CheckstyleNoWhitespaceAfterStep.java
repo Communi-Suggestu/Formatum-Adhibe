@@ -22,9 +22,9 @@ public abstract class CheckstyleNoWhitespaceAfterStep extends FormattingStep {
 
     private String apply(String text) {
         return text
-                .replaceAll("\\.\\s+", ".")
-                .replaceAll("@\\s+", "@")
-                .replaceAll("([!~])\\s+", "$1");
+                .replaceAll("\\.[ \\t]+", ".")
+                .replaceAll("@[ \\t]+", "@")
+                .replaceAll("([!~])[ \\t]+", "$1");
     }
 }
 

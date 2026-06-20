@@ -24,13 +24,13 @@ public abstract class CheckstyleParenPadStep extends FormattingStep {
         String option = getOption().getOrElse("nospace");
         if ("space".equalsIgnoreCase(option)) {
             return text
-                    .replaceAll("\\((?![\\s\\n)])", "( ")
-                    .replaceAll("(?<![\\s\\n(])\\)", " )");
+                    .replaceAll("\\((?![ )\\n])", "( ")
+                    .replaceAll("(?<![ (\\n])\\)", " )");
         }
 
         return text
-                .replaceAll("\\(\\s+", "(")
-                .replaceAll("\\s+\\)", ")");
+                .replaceAll("\\( +", "(")
+                .replaceAll(" +\\)", ")");
     }
 }
 
