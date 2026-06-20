@@ -41,7 +41,15 @@ public abstract class CheckstyleLeftCurlyStep extends FormattingStep {
                 continue;
             }
 
-            String previous = lines.get(i - 1);
+            int previousIndex = i - 1;
+            while (previousIndex >= 0 && lines.get(previousIndex).trim().isEmpty()) {
+                previousIndex--;
+            }
+            if (previousIndex < 0) {
+                continue;
+            }
+
+            String previous = lines.get(previousIndex);
             String previousTrimmed = previous.stripTrailing();
             if (previousTrimmed.isEmpty() || previousTrimmed.endsWith("{")) {
                 continue;
@@ -51,9 +59,9 @@ public abstract class CheckstyleLeftCurlyStep extends FormattingStep {
                 continue;
             }
 
-            lines.set(i - 1, previousTrimmed + " {");
-            lines.remove(i);
-            i--;
+            lines.set(previousIndex, previousTrimmed + " {");
+            lines.subList(previousIndex + 1, i + 1).clear();
+            i = previousIndex;
         }
         return String.join("\n", lines);
     }

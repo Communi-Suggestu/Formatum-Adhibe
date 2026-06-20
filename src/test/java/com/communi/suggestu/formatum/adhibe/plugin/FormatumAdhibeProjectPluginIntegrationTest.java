@@ -10,8 +10,9 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FormatumAdhibeProjectPluginIntegrationTest
 {
@@ -313,9 +314,9 @@ class FormatumAdhibeProjectPluginIntegrationTest
         assertTrue(formatted.matches("(?s).*\\n\\s*return input;\\n.*"), formatted);
 
         // Guard against previously reported structural clobbering symptoms.
-        assertTrue(!formatted.contains("List <String>"), formatted);
-        assertTrue(!formatted.contains("\n {"), formatted);
-        assertTrue(!formatted.contains("\n);\n\n\t\treturn input;"), formatted);
+        assertFalse(formatted.contains("List <String>"), formatted);
+        assertFalse(formatted.contains("\n {"), formatted);
+        assertFalse(formatted.contains("\n);\n\n\t\treturn input;"), formatted);
     }
 
     @Test
@@ -375,8 +376,8 @@ class FormatumAdhibeProjectPluginIntegrationTest
         assertTrue(formatted.contains("\n\t}\n}"), formatted);
 
         // Guard against indentation-stripping regression.
-        assertTrue(!formatted.contains("\n.pattern("), formatted);
-        assertTrue(!formatted.contains("\n }\n }"), formatted);
+        assertFalse(formatted.contains("\n.pattern("), formatted);
+        assertFalse(formatted.contains("\n }\n }"), formatted);
     }
 
     @Test

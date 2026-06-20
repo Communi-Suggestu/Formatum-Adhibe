@@ -6,7 +6,9 @@ import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 
 import javax.inject.Inject;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
 public abstract class CheckstyleIndentationStep extends FormattingStep {
@@ -37,8 +39,9 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
     private String apply(String text) {
         List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
         int blockIndent = 0;
-        int parenthesisDepth = 0;
+        Deque<ParenContext> parenContexts = new ArrayDeque<>();
         int continuationTabs = Math.max(1, getLineWrappingIndentation().getOrElse(8) / Math.max(1, getBasicOffset().getOrElse(4)));
+        int caseOffset = Math.max(0, getCaseIndent().getOrElse(0) / Math.max(1, getBasicOffset().getOrElse(4)));
 
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
@@ -47,33 +50,40 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
                 continue;
             }
 
-            boolean startsWithTab = !line.isEmpty() && line.charAt(0) == '\t';
-            boolean hasLeadingSpaces = !line.isEmpty() && line.charAt(0) == ' ';
-
-            int effectiveIndent = blockIndent;
-            if (startsWithClosingBrace(trimmed)) {
-                effectiveIndent = Math.max(0, effectiveIndent - 1);
-            }
-
-            if (parenthesisDepth > 0 && !startsWithClosingBrace(trimmed)) {
-                effectiveIndent += continuationTabs;
-            }
-
-            if (trimmed.startsWith("case ") || trimmed.startsWith("default:")) {
-                int caseOffset = Math.max(0, getCaseIndent().getOrElse(0) / Math.max(1, getBasicOffset().getOrElse(4)));
-                effectiveIndent = Math.max(0, effectiveIndent - 1 + caseOffset);
-            }
-
-            // Keep existing tab-indented lines untouched to avoid reflowing multiline constructs.
-            if (hasLeadingSpaces && !startsWithTab) {
-                lines.set(i, "\t".repeat(Math.max(0, effectiveIndent)) + trimmed);
-            }
-
+            int effectiveIndent = determineIndent(trimmed, blockIndent, parenContexts, continuationTabs, caseOffset);
+            lines.set(i, "\t".repeat(Math.max(0, effectiveIndent)) + trimmed);
             blockIndent = updateBlockIndent(blockIndent, trimmed);
-            parenthesisDepth = updateParenthesisDepth(parenthesisDepth, trimmed);
+            updateParenContexts(parenContexts, trimmed, effectiveIndent);
         }
 
         return String.join("\n", lines);
+    }
+
+    private static int determineIndent(String trimmed, int blockIndent, Deque<ParenContext> parenContexts, int continuationTabs, int caseOffset) {
+        if (startsWithClosingBrace(trimmed)) {
+            return Math.max(0, blockIndent - 1);
+        }
+
+        if (trimmed.startsWith("case ") || trimmed.startsWith("default:")) {
+            return Math.max(0, blockIndent - 1 + caseOffset);
+        }
+
+        if (isStandaloneClosingParenLine(trimmed) && !parenContexts.isEmpty()) {
+            return parenContexts.peek().anchorIndentTabs();
+        }
+
+        if (!parenContexts.isEmpty()) {
+            if (trimmed.startsWith("new ")) {
+                return Math.max(blockIndent, parenContexts.peek().anchorIndentTabs() + Math.max(1, continuationTabs - 1));
+            }
+            return Math.max(blockIndent, parenContexts.peek().anchorIndentTabs() + continuationTabs);
+        }
+
+        if (trimmed.startsWith(".")) {
+            return blockIndent + 1;
+        }
+
+        return blockIndent;
     }
 
     private static boolean startsWithClosingBrace(String trimmed) {
@@ -82,8 +92,31 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
 
     private static int updateBlockIndent(int currentIndent, String line) {
         int indent = currentIndent;
+        boolean inString = false;
+        boolean inChar = false;
         for (int i = 0; i < line.length(); i++) {
             char c = line.charAt(i);
+            char next = i + 1 < line.length() ? line.charAt(i + 1) : '\0';
+            if (!inString && !inChar && c == '/' && next == '/') {
+                break;
+            }
+            if (!inChar && c == '"') {
+                boolean escaped = i > 0 && line.charAt(i - 1) == '\\';
+                if (!escaped) {
+                    inString = !inString;
+                }
+                continue;
+            }
+            if (!inString && c == '\'') {
+                boolean escaped = i > 0 && line.charAt(i - 1) == '\\';
+                if (!escaped) {
+                    inChar = !inChar;
+                }
+                continue;
+            }
+            if (inString || inChar) {
+                continue;
+            }
             if (c == '{') {
                 indent++;
             } else if (c == '}') {
@@ -93,12 +126,15 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         return indent;
     }
 
-    private static int updateParenthesisDepth(int currentDepth, String line) {
-        int depth = currentDepth;
+    private static void updateParenContexts(Deque<ParenContext> parenContexts, String line, int anchorIndentTabs) {
         boolean inString = false;
         boolean inChar = false;
         for (int i = 0; i < line.length(); i++) {
             char c = line.charAt(i);
+            char next = i + 1 < line.length() ? line.charAt(i + 1) : '\0';
+            if (!inString && !inChar && c == '/' && next == '/') {
+                break;
+            }
             if (c == '"' && !inChar) {
                 boolean escaped = i > 0 && line.charAt(i - 1) == '\\';
                 if (!escaped) {
@@ -116,13 +152,19 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             if (inString || inChar) {
                 continue;
             }
-            if (c == '(') {
-                depth++;
-            } else if (c == ')') {
-                depth = Math.max(0, depth - 1);
+            if (c == '(' || c == '[') {
+                parenContexts.push(new ParenContext(anchorIndentTabs, c));
+            } else if ((c == ')' || c == ']') && !parenContexts.isEmpty()) {
+                parenContexts.pop();
             }
         }
-        return depth;
+    }
+
+    private static boolean isStandaloneClosingParenLine(String trimmed) {
+        return trimmed.matches("^[)\\]]+[;,]*$");
+    }
+
+    private record ParenContext(int anchorIndentTabs, char opener) {
     }
 }
 

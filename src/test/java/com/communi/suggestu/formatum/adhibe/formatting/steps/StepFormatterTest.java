@@ -111,6 +111,16 @@ class StepFormatterTest {
     }
 
     @Test
+    void enforcesLeftCurlyPolicyAcrossBlankLineBeforeBrace() {
+        CheckstyleLeftCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleLeftCurlyStep.class, STEP_NAME);
+        step.getOption().set("eol");
+        step.getIgnoreEnums().set(true);
+
+        String source = "void run()\n\n{\n\tcall();\n}\n";
+        assertEquals("void run() {\n\tcall();\n}\n", step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void enforcesRightCurlySamePolicy() {
         CheckstyleRightCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleRightCurlyStep.class, STEP_NAME);
         step.getOption().set("same");
@@ -166,6 +176,51 @@ class StepFormatterTest {
         String source = "class Example {\n    public void run() {\n        if (a\n                && b) {\n            call();\n        }\n    }\n}\n";
         String expected = "class Example {\n\tpublic void run() {\n\t\tif (a\n\t\t\t\t&& b) {\n\t\t\tcall();\n\t\t}\n\t}\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void appliesIndentationToAabbStyleWrappedDeclarationsAndAnonymousClasses() {
+        CheckstyleLeftCurlyStep leftCurly = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleLeftCurlyStep.class, STEP_NAME);
+        leftCurly.getOption().set("eol");
+        leftCurly.getIgnoreEnums().set(true);
+
+        CheckstyleIndentationStep indentation = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleIndentationStep.class, STEP_NAME);
+        indentation.getBasicOffset().set(4);
+        indentation.getCaseIndent().set(0);
+        indentation.getThrowsIndent().set(4);
+        indentation.getArrayInitIndent().set(4);
+        indentation.getLineWrappingIndentation().set(8);
+
+        String source = "class Example {\n"
+                + "\tvoid run(\n"
+                + "\t final int a,\n"
+                + "\t final int b)\n\n"
+                + "\t{\n"
+                + "\t\taccessor.call(\n"
+                + "\t\t child(),\n"
+                + "\t\t new Consumer<>()\n\n"
+                + "\t\t {\n"
+                + "\t\t\t@Override\n"
+                + "\t\t\tpublic void accept(final String value)\n\n"
+                + "\t\t\t{\n"
+                + "\t\t\t\tfinal Optional<String> mapped = Optional.of(value).flatMap(\n"
+                + "\t\t\t\t d -> Optional.of(d)\n"
+                + "\t\t\t);\n"
+                + "\t\t\t}\n"
+                + "\t\t }\n\n"
+                + "\t\t);\n"
+                + "\t}\n"
+                + "}\n";
+
+        String afterLeftCurly = leftCurly.formatter().format("Example.java", source);
+        String formatted = indentation.formatter().format("Example.java", afterLeftCurly);
+
+        assertTrue(formatted.contains("\tvoid run(\n\t\t\tfinal int a,\n\t\t\tfinal int b) {"), formatted);
+        assertTrue(formatted.contains("\t\taccessor.call(\n\t\t\t\tchild(),\n\t\t\tnew Consumer<>() {"), formatted);
+        assertTrue(formatted.contains("\t\t\t\tpublic void accept(final String value) {"), formatted);
+        assertTrue(formatted.contains("\t\t\t\tfinal Optional<String> mapped = Optional.of(value).flatMap("), formatted);
+        assertTrue(formatted.contains("\t\t\t\t\t\td -> Optional.of(d)"), formatted);
+        assertTrue(formatted.contains("\t\t);"), formatted);
     }
 
     @Test
