@@ -16,13 +16,17 @@ class DeterministicCheckstylePlannerTest {
 
         PlanningResult result = new DeterministicCheckstylePlanner().plan(root, "checkstyle");
 
-        assertEquals(18, result.steps().size());
+        assertEquals(23, result.steps().size());
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.ORDER_IMPORTS));
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.CONVERT_LEADING_SPACES_TO_TABS));
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.INSERT_BLANK_LINE_BEFORE_INDENTED_BLOCK));
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.LEFT_CURLY));
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.RIGHT_CURLY));
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.NEED_BRACES));
+        assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.EMPTY_LINE_SEPARATOR));
+        assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.OPERATOR_WRAP));
+        assertTrue(result.steps().stream().filter(step -> step.kind() == GeneratedStepKind.SEPARATOR_WRAP).count() == 2);
+        assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.INDENTATION));
     }
 }
 

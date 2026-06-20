@@ -16,9 +16,13 @@ import com.communi.suggestu.formatum.adhibe.checkstyle.hints.HintRegexStepFactor
 import com.communi.suggestu.formatum.adhibe.checkstyle.hints.HintResolver;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleImportLintStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleImportOrderStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleEmptyLineSeparatorStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleIndentationStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleLeftCurlyStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleNeedBracesStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleOperatorWrapStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleRightCurlyStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleSeparatorWrapStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CollapseConsecutiveBlankLinesStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.EnsureTrailingNewlineStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.InsertBlankLineAfterIndentedBlockStep;
@@ -89,6 +93,14 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             ProblemId.create("right-curly", "Incorrect right brace placement", FORMATTING_GROUP);
     private static final ProblemId ID_NEED_BRACES =
             ProblemId.create("need-braces", "Missing required braces", FORMATTING_GROUP);
+    private static final ProblemId ID_EMPTY_LINE_SEPARATOR =
+            ProblemId.create("empty-line-separator", "Invalid empty-line separation", FORMATTING_GROUP);
+    private static final ProblemId ID_OPERATOR_WRAP =
+            ProblemId.create("operator-wrap", "Incorrect operator wrap", FORMATTING_GROUP);
+    private static final ProblemId ID_SEPARATOR_WRAP =
+            ProblemId.create("separator-wrap", "Incorrect separator wrap", FORMATTING_GROUP);
+    private static final ProblemId ID_INDENTATION =
+            ProblemId.create("indentation", "Incorrect indentation", FORMATTING_GROUP);
     private static final ProblemId ID_AVOID_STAR_IMPORT =
             ProblemId.create("avoid-star-import", "Avoid wildcard imports", FORMATTING_GROUP);
     private static final ProblemId ID_ILLEGAL_IMPORT =
@@ -231,6 +243,10 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             case LEFT_CURLY -> ID_LEFT_CURLY;
             case RIGHT_CURLY -> ID_RIGHT_CURLY;
             case NEED_BRACES -> ID_NEED_BRACES;
+            case EMPTY_LINE_SEPARATOR -> ID_EMPTY_LINE_SEPARATOR;
+            case OPERATOR_WRAP -> ID_OPERATOR_WRAP;
+            case SEPARATOR_WRAP -> ID_SEPARATOR_WRAP;
+            case INDENTATION -> ID_INDENTATION;
             case CONVERT_LEADING_SPACES_TO_TABS -> ID_LEADING_SPACES;
             case ORDER_IMPORTS -> ID_IMPORT_ORDER;
             case AVOID_STAR_IMPORT -> ID_AVOID_STAR_IMPORT;
@@ -291,6 +307,38 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
                 step.getTokens().set(splitCsv(module == null ? "" : module.property("tokens").orElse("")));
                 step.getAllowSingleLineStatement().set(module != null && module.property("allowSingleLineStatement").map(Boolean::parseBoolean).orElse(false));
                 step.getAllowEmptyLoopBody().set(module != null && module.property("allowEmptyLoopBody").map(Boolean::parseBoolean).orElse(false));
+                yield step.formatter();
+            }
+            case EMPTY_LINE_SEPARATOR -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                CheckstyleEmptyLineSeparatorStep step = getObjects().newInstance(CheckstyleEmptyLineSeparatorStep.class, generatedName);
+                step.getAllowNoEmptyLineBetweenFields().set(module != null && module.property("allowNoEmptyLineBetweenFields").map(Boolean::parseBoolean).orElse(false));
+                step.getAllowMultipleEmptyLines().set(module != null && module.property("allowMultipleEmptyLines").map(Boolean::parseBoolean).orElse(false));
+                step.getTokens().set(splitCsv(module == null ? "" : module.property("tokens").orElse("")));
+                yield step.formatter();
+            }
+            case OPERATOR_WRAP -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                CheckstyleOperatorWrapStep step = getObjects().newInstance(CheckstyleOperatorWrapStep.class, generatedName);
+                step.getOption().set(module == null ? "nl" : module.property("option").orElse("nl"));
+                step.getTokens().set(splitCsv(module == null ? "" : module.property("tokens").orElse("")));
+                yield step.formatter();
+            }
+            case SEPARATOR_WRAP -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                CheckstyleSeparatorWrapStep step = getObjects().newInstance(CheckstyleSeparatorWrapStep.class, generatedName);
+                step.getOption().set(module == null ? "eol" : module.property("option").orElse("eol"));
+                step.getTokens().set(splitCsv(module == null ? "" : module.property("tokens").orElse("")));
+                yield step.formatter();
+            }
+            case INDENTATION -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                CheckstyleIndentationStep step = getObjects().newInstance(CheckstyleIndentationStep.class, generatedName);
+                step.getBasicOffset().set(module == null ? 4 : module.property("basicOffset").map(Integer::parseInt).orElse(4));
+                step.getCaseIndent().set(module == null ? 4 : module.property("caseIndent").map(Integer::parseInt).orElse(4));
+                step.getThrowsIndent().set(module == null ? 4 : module.property("throwsIndent").map(Integer::parseInt).orElse(4));
+                step.getArrayInitIndent().set(module == null ? 4 : module.property("arrayInitIndent").map(Integer::parseInt).orElse(4));
+                step.getLineWrappingIndentation().set(module == null ? 4 : module.property("lineWrappingIndentation").map(Integer::parseInt).orElse(4));
                 yield step.formatter();
             }
             case AVOID_STAR_IMPORT -> createImportLintFormatter(generatedName, step -> step.getAvoidStarImport().set(true));

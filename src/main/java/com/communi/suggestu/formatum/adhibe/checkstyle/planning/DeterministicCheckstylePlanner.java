@@ -60,6 +60,10 @@ public final class DeterministicCheckstylePlanner {
             case "LeftCurly" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.LEFT_CURLY, module.message().orElse(null));
             case "RightCurly" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.RIGHT_CURLY, module.message().orElse(null));
             case "NeedBraces", "NeedsBraces" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.NEED_BRACES, module.message().orElse(null));
+            case "EmptyLineSeparator" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.EMPTY_LINE_SEPARATOR, module.message().orElse(null));
+            case "OperatorWrap" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.OPERATOR_WRAP, module.message().orElse(null));
+            case "SeparatorWrap" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.SEPARATOR_WRAP, module.message().orElse(null));
+            case "Indentation" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.INDENTATION, module.message().orElse(null));
             case "AvoidStarImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.AVOID_STAR_IMPORT, module.message().orElse(null));
             case "IllegalImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.ILLEGAL_IMPORT, module.message().orElse(null));
             case "RedundantImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.REDUNDANT_IMPORT, module.message().orElse(null));

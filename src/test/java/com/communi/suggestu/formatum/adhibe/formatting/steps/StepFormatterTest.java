@@ -121,6 +121,54 @@ class StepFormatterTest {
     }
 
     @Test
+    void appliesEmptyLineSeparatorRules() {
+        CheckstyleEmptyLineSeparatorStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleEmptyLineSeparatorStep.class, STEP_NAME);
+        step.getAllowNoEmptyLineBetweenFields().set(true);
+        step.getAllowMultipleEmptyLines().set(false);
+        step.getTokens().set(java.util.List.of("PACKAGE_DEF", "IMPORT", "CLASS_DEF"));
+
+        String source = "package test;\nimport java.util.List;\n\n\npublic class Example {}\n";
+        String expected = "package test;\n\nimport java.util.List;\n\npublic class Example {}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void appliesOperatorWrapNlPolicy() {
+        CheckstyleOperatorWrapStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleOperatorWrapStep.class, STEP_NAME);
+        step.getOption().set("nl");
+        step.getTokens().set(java.util.List.of("LAND", "LOR"));
+
+        String source = "if (a &&\n\tb) {\n\tcall();\n}\n";
+        String expected = "if (a\n\t&& b) {\n\tcall();\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void appliesSeparatorWrapEolPolicy() {
+        CheckstyleSeparatorWrapStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleSeparatorWrapStep.class, STEP_NAME);
+        step.getOption().set("eol");
+        step.getTokens().set(java.util.List.of("COMMA"));
+
+        String source = "values(\n\ta\n\t, b\n);\n";
+        String expected = "values(\n\ta,\n\tb\n);\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void appliesIndentationRules() {
+        CheckstyleIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleIndentationStep.class, STEP_NAME);
+        step.getBasicOffset().set(4);
+        step.getCaseIndent().set(0);
+        step.getThrowsIndent().set(4);
+        step.getArrayInitIndent().set(4);
+        step.getLineWrappingIndentation().set(8);
+
+        String source = "class Example {\npublic void run() {\nif (a\n&& b) {\ncall();\n}\n}\n}\n";
+        String expected = "class Example {\n\tpublic void run() {\n\t\tif (a\n\t\t\t\t&& b) {\n\t\t\tcall();\n\t\t}\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void insertsNeedBracesForConfiguredTokens() {
         CheckstyleNeedBracesStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleNeedBracesStep.class, STEP_NAME);
         step.getTokens().set(java.util.List.of("LITERAL_IF", "LITERAL_FOR", "LITERAL_WHILE"));
