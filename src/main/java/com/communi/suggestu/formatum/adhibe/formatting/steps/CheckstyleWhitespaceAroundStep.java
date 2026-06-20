@@ -25,6 +25,7 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
         result = result.replaceAll("(?<![<>=!+\\-*/%&|^])=(?!=)", " = ");
         result = result.replaceAll("(?<![!])!=(?!=)", " != ");
         result = result.replaceAll("==", " == ");
+        result = result.replaceAll("\\{\\}", "{ }");
         result = result.replaceAll(" {2,}", " ");
         return result;
     }

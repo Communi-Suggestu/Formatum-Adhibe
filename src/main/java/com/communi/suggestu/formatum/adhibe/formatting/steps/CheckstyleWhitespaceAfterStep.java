@@ -23,7 +23,8 @@ public abstract class CheckstyleWhitespaceAfterStep extends FormattingStep {
     private String apply(String text) {
         return text
                 .replaceAll(",(?=\\S)", ", ")
-                .replaceAll(";(?=\\S)", "; ");
+                .replaceAll(";(?=\\S)", "; ")
+                .replaceAll("\\b(if|for|while|switch|catch|synchronized|try)\\(", "$1 (");
     }
 }
 

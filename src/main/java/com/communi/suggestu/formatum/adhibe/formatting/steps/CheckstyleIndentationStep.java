@@ -80,7 +80,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             return Math.max(0, blockIndent - 1 + caseOffset);
         }
 
-        if (isStandaloneClosingParenLine(trimmed) && !parenContexts.isEmpty()) {
+        if (startsWithClosingParenLine(trimmed) && !parenContexts.isEmpty()) {
             return parenContexts.peek().anchorIndentTabs();
         }
 
@@ -96,7 +96,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         }
 
         if (trimmed.startsWith(".")) {
-            return blockIndent + 1;
+            return Math.max(blockIndent + 1, blockIndent + continuationTabs);
         }
 
         return blockIndent;
@@ -197,7 +197,13 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
     }
 
     private static boolean isDeclarationLikeBlockOpener(String trimmed) {
-        return trimmed.endsWith("{") && trimmed.contains("(") && trimmed.contains(")");
+        if (!trimmed.endsWith("{") || !trimmed.contains("(") || !trimmed.contains(")")) {
+            return false;
+        }
+
+        // Resource declarations in try-with-resources are wrapped continuation lines that
+        // should close at structural block indent, not at continuation indent.
+        return !trimmed.matches(".*(?<![<>=!+\\-*/%&|^])=(?!=).*\\)\\s*\\{$");
     }
 
     private static void updateParenContexts(Deque<ParenContext> parenContexts, String line, int anchorIndentTabs) {
@@ -234,7 +240,14 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         }
     }
 
-    private static boolean isStandaloneClosingParenLine(String trimmed) {
+    private static boolean startsWithClosingParenLine(String trimmed) {
+        if (trimmed.matches("^[)\\]].*$")) {
+            return trimmed.matches("^[)\\]]+(\\s*[,;])?$")
+                    || trimmed.matches("^[)\\]]+\\s+implements\\b.*$")
+                    || trimmed.matches("^[)\\]]+\\s+throws\\b.*$")
+                    || trimmed.matches("^[)\\]]+\\s*\\{.*$");
+        }
+
         return trimmed.matches("^[)\\]]+[;,]*(\\s*\\{)?$");
     }
 
