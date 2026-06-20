@@ -19,9 +19,26 @@ public abstract class CheckstyleCommentsIndentationStep extends FormattingStep {
 
     private String apply(String text) {
         List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
+        String currentJavadocIndent = null;
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
             String trimmed = line.trim();
+
+            if (trimmed.startsWith("/**")) {
+                currentJavadocIndent = indentation(line);
+                continue;
+            }
+
+            if (currentJavadocIndent != null) {
+                if (trimmed.startsWith("*") || trimmed.startsWith("*/")) {
+                    lines.set(i, currentJavadocIndent + " " + trimmed);
+                }
+                if (trimmed.contains("*/")) {
+                    currentJavadocIndent = null;
+                }
+                continue;
+            }
+
             if (!trimmed.startsWith("//")) {
                 continue;
             }
@@ -51,6 +68,14 @@ public abstract class CheckstyleCommentsIndentationStep extends FormattingStep {
             }
         }
         return -1;
+    }
+
+    private static String indentation(String text) {
+        int i = 0;
+        while (i < text.length() && (text.charAt(i) == '\t' || text.charAt(i) == ' ')) {
+            i++;
+        }
+        return text.substring(0, i);
     }
 }
 

@@ -376,6 +376,23 @@ class StepFormatterTest {
     }
 
     @Test
+    void appliesCommentsIndentationRulesToMultilineJavadoc() {
+        CheckstyleCommentsIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleCommentsIndentationStep.class, STEP_NAME);
+
+        String source = "interface Example {\n\t/**\n\t* Line one.\n\t* Line two.\n\t*/\n\tvoid run();\n}\n";
+        String expected = "interface Example {\n\t/**\n\t * Line one.\n\t * Line two.\n\t */\n\tvoid run();\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void keepsAlreadyCorrectMultilineJavadocIndentation() {
+        CheckstyleCommentsIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleCommentsIndentationStep.class, STEP_NAME);
+
+        String source = "interface Example {\n\t/**\n\t * Line one.\n\t * @param value value.\n\t */\n\tvoid run(int value);\n}\n";
+        assertEquals(source, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void parenPadDoesNotCollapseMultilineMethodSignatures() {
         CheckstyleParenPadStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleParenPadStep.class, STEP_NAME);
         step.getOption().set("nospace");
