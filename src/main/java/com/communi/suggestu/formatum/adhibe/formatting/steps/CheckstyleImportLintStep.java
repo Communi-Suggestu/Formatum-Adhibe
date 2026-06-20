@@ -12,6 +12,7 @@ import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
+import org.jspecify.annotations.Nullable;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -40,6 +41,9 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
 
     @Input
     public abstract Property<Boolean> getRemoveIllegalImports();
+
+    @Input
+    public abstract Property<String> getIllegalImportsReason();
 
     @Input
     public abstract ListProperty<String> getIllegalClasses();
@@ -123,7 +127,7 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
         JavaImportUsageAnalyzer.ImportUsage usage = analysis
                 .usage()
                 .orElse(JavaImportUsageAnalyzer.ImportUsage.unavailable());
-        List<ImportLine> sanitized = applyRules(imports, packageName, usage);
+        List<ImportLine> sanitized = applyRules(imports, fileName, packageName, usage);
 
         if (sanitized.equals(imports)) {
             return text;
@@ -139,10 +143,11 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
         return String.join("\n", output);
     }
 
-    private List<ImportLine> applyRules(List<ImportLine> imports, String packageName, JavaImportUsageAnalyzer.ImportUsage usage) {
+    private List<ImportLine> applyRules(List<ImportLine> imports, final String fileName, String packageName, JavaImportUsageAnalyzer.ImportUsage usage) {
         LinkedHashSet<ImportLine> output = new LinkedHashSet<>();
         for (ImportLine importLine : imports) {
             if (getRemoveIllegalImports().get() && isIllegal(importLine)) {
+                output.add(new ImportLine(importLine, getIllegalImportsReason().get()));
                 continue;
             }
 
@@ -258,6 +263,14 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
     }
 
     private String render(ImportLine importLine) {
+        if (importLine.disabled()) {
+            return "// ILLEGAL IMPORT: -> " + renderImportRegardlessOfState(importLine) + "   ->   " + importLine.disabledReason();
+        }
+
+        return renderImportRegardlessOfState(importLine);
+    }
+
+    private String renderImportRegardlessOfState(ImportLine importLine) {
         return "import " + (importLine.staticImport() ? "static " : "") + importLine.target() + ";" + importLine.trailing();
     }
 
@@ -280,7 +293,34 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
         return fileName.replace('\\', '_').replace('/', '_');
     }
 
-    private record ImportLine(boolean staticImport, String target, String trailing) {
+    private record ImportLine(boolean staticImport, String target, String trailing, @Nullable String disabledReason) {
+
+        public ImportLine(final boolean staticImport, final String target, final String trailing)
+        {
+            this(staticImport, target, trailing, null);
+        }
+
+        public ImportLine(final ImportLine source, final String disabledReason) {
+            this(source.staticImport(), source.target(), source.trailing(), updateDisabledReason(source.disabledReason, disabledReason));
+        }
+
+        private static String updateDisabledReason(@Nullable final String current, final String newReason) {
+            if (current == null)
+            {
+                return newReason;
+            }
+
+            if (current.equals(newReason)) {
+                return current;
+            }
+
+            return "'" + current + "' and '" + newReason + "'";
+        }
+
+        public boolean disabled()
+        {
+            return this.disabledReason != null;
+        }
     }
 }
 

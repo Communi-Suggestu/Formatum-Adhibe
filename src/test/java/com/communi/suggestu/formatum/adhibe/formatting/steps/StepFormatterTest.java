@@ -71,6 +71,7 @@ class StepFormatterTest {
         CheckstyleImportLintStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
         step.getAvoidStarImport().set(true);
         step.getRemoveIllegalImports().set(true);
+        step.getIllegalImportsReason().set("We use JSPECIFY in this project for nullable annotations.");
         step.getIllegalClasses().set(java.util.List.of("org.jetbrains.annotations.Nullable"));
         step.getIllegalPkgs().set(java.util.List.of());
         step.getRemoveRedundantImports().set(true);
@@ -88,7 +89,9 @@ class StepFormatterTest {
                 + "class Helper {}\n";
 
         String expected = "package test;\n\n"
-                + "import java.util.Map;\n\n"
+                + "import java.util.Map;\n"
+                + "import java.lang.String;\n"
+                + "// ILLEGAL IMPORT: -> import org.jetbrains.annotations.Nullable;   ->   We use JSPECIFY in this project for nullable annotations.\n\n"
                 + "class Example {\n"
                 + "\tMap<String, String> values = java.util.Collections.emptyMap();\n"
                 + "}\n\n"

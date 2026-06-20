@@ -74,7 +74,6 @@ class FormatumAdhibeProjectPluginIntegrationTest
         Files.writeString(sourceFile, String.join("\n",
                 "package test;",
                 "",
-                "import test.Helper;",
                 "import javax.swing.JButton;",
                 "import static java.util.Collections.emptyList;",
                 "import java.util.Map;",
@@ -106,8 +105,6 @@ class FormatumAdhibeProjectPluginIntegrationTest
                 import java.util.Map;
 
                 import javax.swing.JButton;
-
-                import test.Helper;
 
                 public class Example {
 
@@ -217,7 +214,6 @@ class FormatumAdhibeProjectPluginIntegrationTest
         Files.writeString(sourceFile, String.join("\n",
                 "package test;",
                 "",
-                "import test.Helper;",
                 "import javax.swing.JButton;",
                 "import static java.util.Collections.emptyList;",
                 "import java.util.Map;",

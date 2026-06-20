@@ -304,6 +304,7 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
                     step.getRemoveIllegalImports().set(true);
                     step.getIllegalClasses().set(illegalClasses);
                     step.getIllegalPkgs().set(illegalPkgs);
+                    step.getIllegalImportsReason().set(module.message().orElse("Unknown reason for illegal import!"));
                 });
             }
             default -> throw new IllegalStateException("Unsupported simple step kind: " + spec.kind());
