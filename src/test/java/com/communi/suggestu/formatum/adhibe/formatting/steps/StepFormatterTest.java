@@ -169,6 +169,83 @@ class StepFormatterTest {
     }
 
     @Test
+    void appliesParenPadNoSpacePolicy() {
+        CheckstyleParenPadStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleParenPadStep.class, STEP_NAME);
+        step.getOption().set("nospace");
+
+        String source = "if ( value ) {\n\tcall( arg );\n}\n";
+        String expected = "if (value) {\n\tcall(arg);\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void appliesNoWhitespaceBeforeRules() {
+        CheckstyleNoWhitespaceBeforeStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleNoWhitespaceBeforeStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("COMMA", "SEMI", "DOT"));
+
+        String source = "value . map ( a , b ) ;\n";
+        String expected = "value.map ( a, b);\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void appliesNoWhitespaceAfterRules() {
+        CheckstyleNoWhitespaceAfterStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleNoWhitespaceAfterStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("DOT", "AT"));
+
+        String source = "@ Deprecated\nvalue. map();\n";
+        String expected = "@Deprecated\nvalue.map();\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void appliesWhitespaceAfterRules() {
+        CheckstyleWhitespaceAfterStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAfterStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("COMMA"));
+
+        String source = "call(a,b,c);\n";
+        String expected = "call(a, b, c);\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void appliesWhitespaceAroundRules() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("ASSIGN", "EQUAL", "LITERAL_IF"));
+
+        String source = "if(flag==true){\n\tint value=1;\n}\n";
+        String expected = "if(flag == true) {\n\tint value = 1;\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void appliesSingleSpaceSeparatorRules() {
+        CheckstyleSingleSpaceSeparatorStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleSingleSpaceSeparatorStep.class, STEP_NAME);
+
+        String source = "class  Example {\n\tint   value =  1;\n}\n";
+        String expected = "class Example {\n\tint value = 1;\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void appliesGenericWhitespaceRules() {
+        CheckstyleGenericWhitespaceStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleGenericWhitespaceStep.class, STEP_NAME);
+
+        String source = "Map< String ,Integer > values;\n";
+        String expected = "Map<String, Integer> values;\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void appliesCommentsIndentationRules() {
+        CheckstyleCommentsIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleCommentsIndentationStep.class, STEP_NAME);
+
+        String source = "class Example {\n\tvoid run() {\n// comment\n\t\tcall();\n\t}\n}\n";
+        String expected = "class Example {\n\tvoid run() {\n\t// comment\n\t\tcall();\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void insertsNeedBracesForConfiguredTokens() {
         CheckstyleNeedBracesStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleNeedBracesStep.class, STEP_NAME);
         step.getTokens().set(java.util.List.of("LITERAL_IF", "LITERAL_FOR", "LITERAL_WHILE"));

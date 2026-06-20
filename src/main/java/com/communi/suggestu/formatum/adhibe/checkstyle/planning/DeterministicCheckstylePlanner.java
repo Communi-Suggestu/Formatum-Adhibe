@@ -64,6 +64,14 @@ public final class DeterministicCheckstylePlanner {
             case "OperatorWrap" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.OPERATOR_WRAP, module.message().orElse(null));
             case "SeparatorWrap" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.SEPARATOR_WRAP, module.message().orElse(null));
             case "Indentation" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.INDENTATION, module.message().orElse(null));
+            case "ParenPad" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.PAREN_PAD, module.message().orElse(null));
+            case "NoWhitespaceBefore" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.NO_WHITESPACE_BEFORE, module.message().orElse(null));
+            case "NoWhitespaceAfter" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.NO_WHITESPACE_AFTER, module.message().orElse(null));
+            case "WhitespaceAfter" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.WHITESPACE_AFTER, module.message().orElse(null));
+            case "WhitespaceAround" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.WHITESPACE_AROUND, module.message().orElse(null));
+            case "SingleSpaceSeparator" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.SINGLE_SPACE_SEPARATOR, module.message().orElse(null));
+            case "GenericWhitespace" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.GENERIC_WHITESPACE, module.message().orElse(null));
+            case "CommentsIndentation" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.COMMENTS_INDENTATION, module.message().orElse(null));
             case "AvoidStarImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.AVOID_STAR_IMPORT, module.message().orElse(null));
             case "IllegalImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.ILLEGAL_IMPORT, module.message().orElse(null));
             case "RedundantImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.REDUNDANT_IMPORT, module.message().orElse(null));

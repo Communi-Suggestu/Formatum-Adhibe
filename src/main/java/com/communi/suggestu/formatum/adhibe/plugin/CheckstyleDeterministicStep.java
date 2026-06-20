@@ -21,8 +21,16 @@ import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleIndentati
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleLeftCurlyStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleNeedBracesStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleOperatorWrapStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleParenPadStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleRightCurlyStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleSeparatorWrapStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleNoWhitespaceBeforeStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleNoWhitespaceAfterStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleWhitespaceAfterStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleWhitespaceAroundStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleSingleSpaceSeparatorStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleGenericWhitespaceStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleCommentsIndentationStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CollapseConsecutiveBlankLinesStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.EnsureTrailingNewlineStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.InsertBlankLineAfterIndentedBlockStep;
@@ -101,6 +109,22 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             ProblemId.create("separator-wrap", "Incorrect separator wrap", FORMATTING_GROUP);
     private static final ProblemId ID_INDENTATION =
             ProblemId.create("indentation", "Incorrect indentation", FORMATTING_GROUP);
+    private static final ProblemId ID_PAREN_PAD =
+            ProblemId.create("paren-pad", "Incorrect parenthesis padding", FORMATTING_GROUP);
+    private static final ProblemId ID_NO_WHITESPACE_BEFORE =
+            ProblemId.create("no-whitespace-before", "Unexpected whitespace before token", FORMATTING_GROUP);
+    private static final ProblemId ID_NO_WHITESPACE_AFTER =
+            ProblemId.create("no-whitespace-after", "Unexpected whitespace after token", FORMATTING_GROUP);
+    private static final ProblemId ID_WHITESPACE_AFTER =
+            ProblemId.create("whitespace-after", "Missing whitespace after token", FORMATTING_GROUP);
+    private static final ProblemId ID_WHITESPACE_AROUND =
+            ProblemId.create("whitespace-around", "Missing whitespace around token", FORMATTING_GROUP);
+    private static final ProblemId ID_SINGLE_SPACE_SEPARATOR =
+            ProblemId.create("single-space-separator", "Invalid multi-space separator", FORMATTING_GROUP);
+    private static final ProblemId ID_GENERIC_WHITESPACE =
+            ProblemId.create("generic-whitespace", "Invalid generic whitespace", FORMATTING_GROUP);
+    private static final ProblemId ID_COMMENTS_INDENTATION =
+            ProblemId.create("comments-indentation", "Incorrect comment indentation", FORMATTING_GROUP);
     private static final ProblemId ID_AVOID_STAR_IMPORT =
             ProblemId.create("avoid-star-import", "Avoid wildcard imports", FORMATTING_GROUP);
     private static final ProblemId ID_ILLEGAL_IMPORT =
@@ -247,6 +271,14 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             case OPERATOR_WRAP -> ID_OPERATOR_WRAP;
             case SEPARATOR_WRAP -> ID_SEPARATOR_WRAP;
             case INDENTATION -> ID_INDENTATION;
+            case PAREN_PAD -> ID_PAREN_PAD;
+            case NO_WHITESPACE_BEFORE -> ID_NO_WHITESPACE_BEFORE;
+            case NO_WHITESPACE_AFTER -> ID_NO_WHITESPACE_AFTER;
+            case WHITESPACE_AFTER -> ID_WHITESPACE_AFTER;
+            case WHITESPACE_AROUND -> ID_WHITESPACE_AROUND;
+            case SINGLE_SPACE_SEPARATOR -> ID_SINGLE_SPACE_SEPARATOR;
+            case GENERIC_WHITESPACE -> ID_GENERIC_WHITESPACE;
+            case COMMENTS_INDENTATION -> ID_COMMENTS_INDENTATION;
             case CONVERT_LEADING_SPACES_TO_TABS -> ID_LEADING_SPACES;
             case ORDER_IMPORTS -> ID_IMPORT_ORDER;
             case AVOID_STAR_IMPORT -> ID_AVOID_STAR_IMPORT;
@@ -341,6 +373,39 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
                 step.getLineWrappingIndentation().set(module == null ? 4 : module.property("lineWrappingIndentation").map(Integer::parseInt).orElse(4));
                 yield step.formatter();
             }
+            case PAREN_PAD -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                CheckstyleParenPadStep step = getObjects().newInstance(CheckstyleParenPadStep.class, generatedName);
+                step.getOption().set(module == null ? "nospace" : module.property("option").orElse("nospace"));
+                yield step.formatter();
+            }
+            case NO_WHITESPACE_BEFORE -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                CheckstyleNoWhitespaceBeforeStep step = getObjects().newInstance(CheckstyleNoWhitespaceBeforeStep.class, generatedName);
+                step.getTokens().set(splitCsv(module == null ? "" : module.property("tokens").orElse("")));
+                yield step.formatter();
+            }
+            case NO_WHITESPACE_AFTER -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                CheckstyleNoWhitespaceAfterStep step = getObjects().newInstance(CheckstyleNoWhitespaceAfterStep.class, generatedName);
+                step.getTokens().set(splitCsv(module == null ? "" : module.property("tokens").orElse("")));
+                yield step.formatter();
+            }
+            case WHITESPACE_AFTER -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                CheckstyleWhitespaceAfterStep step = getObjects().newInstance(CheckstyleWhitespaceAfterStep.class, generatedName);
+                step.getTokens().set(splitCsv(module == null ? "" : module.property("tokens").orElse("")));
+                yield step.formatter();
+            }
+            case WHITESPACE_AROUND -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                CheckstyleWhitespaceAroundStep step = getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, generatedName);
+                step.getTokens().set(splitCsv(module == null ? "" : module.property("tokens").orElse("")));
+                yield step.formatter();
+            }
+            case SINGLE_SPACE_SEPARATOR -> getObjects().newInstance(CheckstyleSingleSpaceSeparatorStep.class, generatedName).formatter();
+            case GENERIC_WHITESPACE -> getObjects().newInstance(CheckstyleGenericWhitespaceStep.class, generatedName).formatter();
+            case COMMENTS_INDENTATION -> getObjects().newInstance(CheckstyleCommentsIndentationStep.class, generatedName).formatter();
             case AVOID_STAR_IMPORT -> createImportLintFormatter(generatedName, step -> step.getAvoidStarImport().set(true));
             case REDUNDANT_IMPORT -> createImportLintFormatter(generatedName, step -> step.getRemoveRedundantImports().set(true));
             case UNUSED_IMPORT -> createImportLintFormatter(generatedName, step -> step.getRemoveUnusedImports().set(true));

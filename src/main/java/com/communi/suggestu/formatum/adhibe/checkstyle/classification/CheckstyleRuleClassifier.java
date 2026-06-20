@@ -29,7 +29,7 @@ public final class CheckstyleRuleClassifier {
             Map.entry("WhitespaceAround", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Whitespace normalization around tokens is deterministic.")),
             Map.entry("SingleSpaceSeparator", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Single-space normalization is deterministic.")),
             Map.entry("GenericWhitespace", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Generic token whitespace normalization is deterministic.")),
-            Map.entry("CommentsIndentation", new RuleClassification(RuleSupport.CHECK_ONLY, "Comment intent can be ambiguous without semantic context.")),
+            Map.entry("CommentsIndentation", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Comment indentation can be normalized deterministically.")),
             Map.entry("ArrayTypeStyle", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Array bracket style can be normalized deterministically.")),
             Map.entry("DefaultComesLast", new RuleClassification(RuleSupport.CHECK_ONLY, "Switch case reordering can alter behavior in edge cases.")),
             Map.entry("SimplifyBooleanExpression", new RuleClassification(RuleSupport.CHECK_ONLY, "Expression simplification can change semantics in corner cases.")),
