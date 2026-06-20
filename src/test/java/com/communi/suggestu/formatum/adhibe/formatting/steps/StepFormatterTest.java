@@ -745,4 +745,59 @@ class StepFormatterTest {
 
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
+
+    @Test
+    void enforcesRightCurlySamePolicyWithTryCatchEmptyLineBetween() {
+        CheckstyleRightCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleRightCurlyStep.class, STEP_NAME);
+        step.getOption().set("same");
+
+        // Test try-catch with empty line between } and catch
+        String source = "void run() {\n\ttry {\n\t\tcall();\n\t}\n\n\tcatch (Exception ignored) {\n\t}\n}\n";
+        String expected = "void run() {\n\ttry {\n\t\tcall();\n\t} catch (Exception ignored) {\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void enforcesRightCurlySamePolicyWithFinally() {
+        CheckstyleRightCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleRightCurlyStep.class, STEP_NAME);
+        step.getOption().set("same");
+
+        // Test try-finally with empty line between } and finally
+        String source = "void run() {\n\ttry {\n\t\tcall();\n\t}\n\n\tfinally {\n\t\tcleanup();\n\t}\n}\n";
+        String expected = "void run() {\n\ttry {\n\t\tcall();\n\t} finally {\n\t\tcleanup();\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void enforcesRightCurlySamePolicyWithWhile() {
+        CheckstyleRightCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleRightCurlyStep.class, STEP_NAME);
+        step.getOption().set("same");
+
+        // Test do-while with empty line between } and while
+        String source = "void run() {\n\tdo {\n\t\tcall();\n\t}\n\n\twhile (condition);\n}\n";
+        String expected = "void run() {\n\tdo {\n\t\tcall();\n\t} while (condition);\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void enforcesRightCurlySamePolicyWithMultipleEmptyLinesBetweenTryCatch() {
+        CheckstyleRightCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleRightCurlyStep.class, STEP_NAME);
+        step.getOption().set("same");
+
+        // Test try-catch with multiple empty lines between } and catch
+        String source = "void run() {\n\ttry {\n\t\tcall();\n\t}\n\n\n\tcatch (Exception e) {\n\t\thandle();\n\t}\n}\n";
+        String expected = "void run() {\n\ttry {\n\t\tcall();\n\t} catch (Exception e) {\n\t\thandle();\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void enforcesRightCurlyAlonePolicyWithContentAfterClosingBrace() {
+        CheckstyleRightCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleRightCurlyStep.class, STEP_NAME);
+        step.getOption().set("alone");
+
+        // Test that content after closing brace is moved to the next line with proper indentation
+        String source = "void run() {\n\tif (flag) {\n\t\tcall();\n\t} else {\n\t\tother();\n\t}\n}\n";
+        String expected = "void run() {\n\tif (flag) {\n\t\tcall();\n\t}\n\telse {\n\t\tother();\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
 }

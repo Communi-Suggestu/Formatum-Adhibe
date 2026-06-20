@@ -55,10 +55,25 @@ public abstract class CheckstyleRightCurlyStep extends FormattingStep {
             }
 
             if (after.isEmpty() && i + 1 < lines.size()) {
-                String next = lines.get(i + 1).trim();
-                if (startsWithContinuationKeyword(next)) {
-                    lines.set(i, line.substring(0, closeIndex) + "} " + next);
-                    lines.remove(i + 1);
+                // Skip empty lines to find the next continuation keyword
+                int nextNonEmptyIndex = i + 1;
+                while (nextNonEmptyIndex < lines.size() && lines.get(nextNonEmptyIndex).trim().isEmpty()) {
+                    nextNonEmptyIndex++;
+                }
+
+                if (nextNonEmptyIndex < lines.size()) {
+                    String next = lines.get(nextNonEmptyIndex).trim();
+                    if (startsWithContinuationKeyword(next)) {
+                        // Remove all empty lines between } and continuation keyword
+                        String indent = line.substring(0, closeIndex);
+                        String continuationLine = lines.get(nextNonEmptyIndex);
+                        String continuationIndent = continuationLine.substring(0, continuationLine.length() - continuationLine.trim().length());
+                        lines.set(i, indent + "} " + next);
+                        // Remove empty lines and the continuation line
+                        for (int j = nextNonEmptyIndex; j > i; j--) {
+                            lines.remove(j);
+                        }
+                    }
                 }
             }
         }
@@ -81,14 +96,18 @@ public abstract class CheckstyleRightCurlyStep extends FormattingStep {
             String before = line.substring(0, closeIndex);
             String after = line.substring(closeIndex + 1).trim();
             if (!after.isEmpty()) {
-                lines.set(i, before + "}");
-                lines.add(i + 1, indentation(before) + after);
+                // There's content after the }, split them onto separate lines
+                String indent = indentation(before);
+                lines.set(i, indent + "}");
+                lines.add(i + 1, indent + after);
                 i++;
                 continue;
             }
 
             if (!before.trim().isEmpty()) {
-                lines.set(i, indentation(before) + "}");
+                // There's content before the }, extract indent and place } on its own line with correct indentation
+                String indent = indentation(before);
+                lines.set(i, indent + "}");
             }
         }
 
