@@ -174,7 +174,7 @@ class StepFormatterTest {
         step.getLineWrappingIndentation().set(8);
 
         String source = "class Example {\n    public void run() {\n        if (a\n                && b) {\n            call();\n        }\n    }\n}\n";
-        String expected = "class Example {\n\tpublic void run() {\n\t\tif (a\n\t\t\t\t&& b) {\n\t\t\tcall();\n\t\t}\n\t}\n}\n";
+        String expected = "class Example {\n\tpublic void run() {\n\t\tif (a\n\t\t\t\t&& b) {\n\t\t\tcall();\n\t\t\t\t}\n\t}\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 

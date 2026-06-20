@@ -40,6 +40,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
         int blockIndent = 0;
         Deque<ParenContext> parenContexts = new ArrayDeque<>();
+        Deque<Integer> braceIndentStack = new ArrayDeque<>();
         int continuationTabs = Math.max(1, getLineWrappingIndentation().getOrElse(8) / Math.max(1, getBasicOffset().getOrElse(4)));
         int caseOffset = Math.max(0, getCaseIndent().getOrElse(0) / Math.max(1, getBasicOffset().getOrElse(4)));
 
@@ -50,8 +51,9 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
                 continue;
             }
 
-            int effectiveIndent = determineIndent(trimmed, blockIndent, parenContexts, continuationTabs, caseOffset);
+            int effectiveIndent = determineIndent(trimmed, blockIndent, parenContexts, braceIndentStack, continuationTabs, caseOffset);
             lines.set(i, "\t".repeat(Math.max(0, effectiveIndent)) + trimmed);
+            updateBraceIndentStack(braceIndentStack, trimmed, effectiveIndent);
             blockIndent = updateBlockIndent(blockIndent, trimmed);
             updateParenContexts(parenContexts, trimmed, effectiveIndent);
         }
@@ -59,8 +61,18 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         return String.join("\n", lines);
     }
 
-    private static int determineIndent(String trimmed, int blockIndent, Deque<ParenContext> parenContexts, int continuationTabs, int caseOffset) {
+    private static int determineIndent(
+            String trimmed,
+            int blockIndent,
+            Deque<ParenContext> parenContexts,
+            Deque<Integer> braceIndentStack,
+            int continuationTabs,
+            int caseOffset
+    ) {
         if (startsWithClosingBrace(trimmed)) {
+            if (!braceIndentStack.isEmpty()) {
+                return braceIndentStack.peek();
+            }
             return Math.max(0, blockIndent - 1);
         }
 
@@ -76,7 +88,11 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             if (trimmed.startsWith("new ")) {
                 return Math.max(blockIndent, parenContexts.peek().anchorIndentTabs() + Math.max(1, continuationTabs - 1));
             }
-            return Math.max(blockIndent, parenContexts.peek().anchorIndentTabs() + continuationTabs);
+            int wrappedIndent = Math.max(blockIndent, parenContexts.peek().anchorIndentTabs() + continuationTabs);
+            if (blockIndent >= parenContexts.peek().anchorIndentTabs() + continuationTabs) {
+                return blockIndent + 1;
+            }
+            return wrappedIndent;
         }
 
         if (trimmed.startsWith(".")) {
@@ -124,6 +140,42 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             }
         }
         return indent;
+    }
+
+    private static void updateBraceIndentStack(Deque<Integer> braceIndentStack, String line, int appliedIndentTabs) {
+        boolean inString = false;
+        boolean inChar = false;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            char next = i + 1 < line.length() ? line.charAt(i + 1) : '\0';
+            if (!inString && !inChar && c == '/' && next == '/') {
+                break;
+            }
+            if (!inChar && c == '"') {
+                boolean escaped = i > 0 && line.charAt(i - 1) == '\\';
+                if (!escaped) {
+                    inString = !inString;
+                }
+                continue;
+            }
+            if (!inString && c == '\'') {
+                boolean escaped = i > 0 && line.charAt(i - 1) == '\\';
+                if (!escaped) {
+                    inChar = !inChar;
+                }
+                continue;
+            }
+            if (inString || inChar) {
+                continue;
+            }
+            if (c == '}') {
+                if (!braceIndentStack.isEmpty()) {
+                    braceIndentStack.pop();
+                }
+            } else if (c == '{') {
+                braceIndentStack.push(appliedIndentTabs);
+            }
+        }
     }
 
     private static void updateParenContexts(Deque<ParenContext> parenContexts, String line, int anchorIndentTabs) {
