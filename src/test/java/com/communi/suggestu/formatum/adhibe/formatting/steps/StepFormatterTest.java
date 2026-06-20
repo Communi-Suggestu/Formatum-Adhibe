@@ -250,6 +250,68 @@ class StepFormatterTest {
     }
 
     @Test
+    void keepsAnonymousConsumerAcceptClosingBracesAlignedWithinWrappedInvocation() {
+        CheckstyleIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleIndentationStep.class, STEP_NAME);
+        step.getBasicOffset().set(4);
+        step.getCaseIndent().set(0);
+        step.getThrowsIndent().set(4);
+        step.getArrayInitIndent().set(4);
+        step.getLineWrappingIndentation().set(8);
+
+        String source = "class Example {\n"
+                + "\tvoid run() {\n"
+                + "\t\taccessor.call(\n"
+                + "\t\t\tIPositionMutator.xyz(),\n"
+                + "\t\t\tnew Consumer<>() {\n"
+                + "\t\t\t\t@Override\n"
+                + "\t\t\t\tpublic void accept(final String value) {\n"
+                + "\t\t\t\t\tif (value.isEmpty()) {\n"
+                + "\t\t\t\t\t\treturn;\n"
+                + "\t\t\t\t\t}\n"
+                + "\t\t\t\t\tcall();\n"
+                + "\t\t\t\t}\n"
+                + "\t\t\t}\n"
+                + "\t\t);\n"
+                + "\t}\n"
+                + "}\n";
+
+        String formatted = step.formatter().format("Example.java", source);
+
+        assertTrue(formatted.contains("\t\t\t\t\tif (value.isEmpty()) {\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}"), formatted);
+        assertTrue(formatted.contains("\t\t\t\t}\n\t\t\t}"), formatted);
+    }
+
+    @Test
+    void alignsMethodParameterClosingParenWithDeclarationIndent() {
+        CheckstyleIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleIndentationStep.class, STEP_NAME);
+        step.getBasicOffset().set(4);
+        step.getCaseIndent().set(0);
+        step.getThrowsIndent().set(4);
+        step.getArrayInitIndent().set(4);
+        step.getLineWrappingIndentation().set(8);
+
+        String source = "class Example {\n"
+                + "\tList<String> get(\n"
+                + "\t\t\tfinal String first,\n"
+                + "\t\t\tfinal String second\n"
+                + "\t\t\t) {\n"
+                + "\t\treturn List.of(first, second);\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tList<String> get(\n"
+                + "\t\t\tfinal String first,\n"
+                + "\t\t\tfinal String second\n"
+                + "\t) {\n"
+                + "\t\treturn List.of(first, second);\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void appliesParenPadNoSpacePolicy() {
         CheckstyleParenPadStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleParenPadStep.class, STEP_NAME);
         step.getOption().set("nospace");

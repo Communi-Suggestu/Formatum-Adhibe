@@ -190,7 +190,14 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
     }
 
     private static boolean shouldUseAppliedBraceIndent(String trimmed) {
-        return trimmed.startsWith("new ") || trimmed.startsWith(".") || trimmed.contains("->");
+        return trimmed.startsWith("new ")
+                || trimmed.startsWith(".")
+                || trimmed.contains("->")
+                || isDeclarationLikeBlockOpener(trimmed);
+    }
+
+    private static boolean isDeclarationLikeBlockOpener(String trimmed) {
+        return trimmed.endsWith("{") && trimmed.contains("(") && trimmed.contains(")");
     }
 
     private static void updateParenContexts(Deque<ParenContext> parenContexts, String line, int anchorIndentTabs) {
@@ -228,7 +235,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
     }
 
     private static boolean isStandaloneClosingParenLine(String trimmed) {
-        return trimmed.matches("^[)\\]]+[;,]*$");
+        return trimmed.matches("^[)\\]]+[;,]*(\\s*\\{)?$");
     }
 
     private record ParenContext(int anchorIndentTabs, char opener) {
