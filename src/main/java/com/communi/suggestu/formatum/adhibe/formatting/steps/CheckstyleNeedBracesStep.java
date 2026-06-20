@@ -123,10 +123,15 @@ public abstract class CheckstyleNeedBracesStep extends FormattingStep {
             return index;
         }
 
+        int statementEndIndex = findStatementEndLine(lines, statementIndex);
+        if (statementEndIndex < statementIndex) {
+            return index;
+        }
+
         lines.set(index, indent + tokenWithHeader + " {");
         lines.set(statementIndex, indent + "\t" + statement.trim());
-        lines.add(statementIndex + 1, indent + "}");
-        return statementIndex + 1;
+        lines.add(statementEndIndex + 1, indent + "}");
+        return statementEndIndex + 1;
     }
 
     private static HeaderAndBody splitConditionAndBody(String remainder) {
@@ -179,6 +184,80 @@ public abstract class CheckstyleNeedBracesStep extends FormattingStep {
         }
         HeaderAndBody headerAndBody = splitConditionAndBody(matcher.group(3));
         return !headerAndBody.conditionClosed();
+    }
+
+    private static int findStatementEndLine(List<String> lines, int startIndex) {
+        int parenthesisDepth = 0;
+        int bracketDepth = 0;
+        int braceDepth = 0;
+        boolean inBlockComment = false;
+
+        for (int i = startIndex; i < lines.size(); i++) {
+            String line = lines.get(i);
+            boolean inString = false;
+            boolean inChar = false;
+
+            for (int j = 0; j < line.length(); j++) {
+                char c = line.charAt(j);
+                char next = j + 1 < line.length() ? line.charAt(j + 1) : '\0';
+
+                if (inBlockComment) {
+                    if (c == '*' && next == '/') {
+                        inBlockComment = false;
+                        j++;
+                    }
+                    continue;
+                }
+
+                if (!inString && !inChar && c == '/' && next == '*') {
+                    inBlockComment = true;
+                    j++;
+                    continue;
+                }
+
+                if (!inString && !inChar && c == '/' && next == '/') {
+                    break;
+                }
+
+                if (!inChar && c == '"') {
+                    boolean escaped = j > 0 && line.charAt(j - 1) == '\\';
+                    if (!escaped) {
+                        inString = !inString;
+                    }
+                    continue;
+                }
+
+                if (!inString && c == '\'') {
+                    boolean escaped = j > 0 && line.charAt(j - 1) == '\\';
+                    if (!escaped) {
+                        inChar = !inChar;
+                    }
+                    continue;
+                }
+
+                if (inString || inChar) {
+                    continue;
+                }
+
+                if (c == '(') {
+                    parenthesisDepth++;
+                } else if (c == ')') {
+                    parenthesisDepth = Math.max(0, parenthesisDepth - 1);
+                } else if (c == '[') {
+                    bracketDepth++;
+                } else if (c == ']') {
+                    bracketDepth = Math.max(0, bracketDepth - 1);
+                } else if (c == '{') {
+                    braceDepth++;
+                } else if (c == '}') {
+                    braceDepth = Math.max(0, braceDepth - 1);
+                } else if (c == ';' && parenthesisDepth == 0 && bracketDepth == 0 && braceDepth == 0) {
+                    return i;
+                }
+            }
+        }
+
+        return -1;
     }
 
     private record HeaderAndBody(String headerRemainder, String bodyRemainder, boolean conditionClosed) {

@@ -211,6 +211,59 @@ class StepFormatterTest {
     }
 
     @Test
+    void wrapsUnbracedIfWithMultilineMethodCallBody() {
+        CheckstyleNeedBracesStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleNeedBracesStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("LITERAL_IF"));
+        step.getAllowSingleLineStatement().set(false);
+        step.getAllowEmptyLoopBody().set(false);
+
+        String source = "package mod.chiselsandbits.client.logic;\n\n"
+                + "import com.mojang.blaze3d.vertex.PoseStack;\n"
+                + "import mod.chiselsandbits.client.render.MeasurementRenderer;\n\n"
+                + "import net.minecraft.client.Minecraft;\n"
+                + "import net.minecraft.client.renderer.MultiBufferSource;\n\n"
+                + "public class MeasurementsRenderHandler\n"
+                + "{\n"
+                + "\tpublic static void renderMeasurements(\n"
+                + "\t\tfinal PoseStack poseStack,\n"
+                + "\t\tfinal MultiBufferSource.BufferSource bufferSource,\n"
+                + "\t\tfinal float partialTickTime)\n"
+                + "\t{\n"
+                + "\t\tif (Minecraft.getInstance().player != null && !Minecraft.getInstance().player.isSpectator())\n"
+                + "\t\t\tMeasurementRenderer.getInstance().renderMeasurements(\n"
+                + "\t\t\t\tposeStack,\n"
+                + "\t\t\t\tbufferSource,\n"
+                + "\t\t\t\tpartialTickTime\n"
+                + "\t\t\t);\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "package mod.chiselsandbits.client.logic;\n\n"
+                + "import com.mojang.blaze3d.vertex.PoseStack;\n"
+                + "import mod.chiselsandbits.client.render.MeasurementRenderer;\n\n"
+                + "import net.minecraft.client.Minecraft;\n"
+                + "import net.minecraft.client.renderer.MultiBufferSource;\n\n"
+                + "public class MeasurementsRenderHandler\n"
+                + "{\n"
+                + "\tpublic static void renderMeasurements(\n"
+                + "\t\tfinal PoseStack poseStack,\n"
+                + "\t\tfinal MultiBufferSource.BufferSource bufferSource,\n"
+                + "\t\tfinal float partialTickTime)\n"
+                + "\t{\n"
+                + "\t\tif (Minecraft.getInstance().player != null && !Minecraft.getInstance().player.isSpectator()) {\n"
+                + "\t\t\tMeasurementRenderer.getInstance().renderMeasurements(\n"
+                + "\t\t\t\tposeStack,\n"
+                + "\t\t\t\tbufferSource,\n"
+                + "\t\t\t\tpartialTickTime\n"
+                + "\t\t\t);\n"
+                + "\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("MeasurementsRenderHandler.java", source));
+    }
+
+    @Test
     void keepsUsedImportsWhenRemovingUnusedImports() {
         CheckstyleImportLintStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
         step.getAvoidStarImport().set(false);
