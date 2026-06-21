@@ -48,7 +48,7 @@ public abstract class CheckstyleOperatorWrapStep extends FormattingStep {
         for (int i = 0; i < lines.size() - 1; i++) {
             String line = lines.get(i);
             String trimmed = line.trim();
-            if (trimmed.isEmpty() || containsLikelyStringOrComment(line)) {
+            if (trimmed.isEmpty() || isCommentLine(trimmed) || containsLikelyStringOrComment(line)) {
                 continue;
             }
             if (trimmed.endsWith("->") || trimmed.contains(" -> ")) {
@@ -82,7 +82,7 @@ public abstract class CheckstyleOperatorWrapStep extends FormattingStep {
         for (int i = 1; i < lines.size(); i++) {
             String line = lines.get(i);
             String trimmed = line.trim();
-            if (trimmed.isEmpty() || containsLikelyStringOrComment(line)) {
+            if (trimmed.isEmpty() || isCommentLine(trimmed) || containsLikelyStringOrComment(line)) {
                 continue;
             }
             if (trimmed.startsWith(">") && i > 0 && lines.get(i - 1).trim().endsWith("-")) {
@@ -148,6 +148,13 @@ public abstract class CheckstyleOperatorWrapStep extends FormattingStep {
 
     private static boolean containsLikelyStringOrComment(String line) {
         return line.contains("\"") || line.contains("//") || line.contains("/*") || line.contains("*/");
+    }
+
+    private static boolean isCommentLine(String trimmed) {
+        return trimmed.startsWith("//")
+                || trimmed.startsWith("/*")
+                || trimmed.startsWith("*/")
+                || trimmed.startsWith("*");
     }
 }
 

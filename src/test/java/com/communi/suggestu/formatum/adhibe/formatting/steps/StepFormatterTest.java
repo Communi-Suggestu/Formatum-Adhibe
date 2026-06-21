@@ -401,6 +401,23 @@ class StepFormatterTest {
     }
 
     @Test
+    void operatorWrapDoesNotSplitJavadocHtmlTags() {
+        CheckstyleOperatorWrapStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleOperatorWrapStep.class, STEP_NAME);
+        step.getOption().set("nl");
+        step.getTokens().set(java.util.List.of("LT", "GT"));
+
+        String source = "/**\n"
+                + " * Represents a plugin for ChiselsAndBits.\n"
+                + " * <p>\n"
+                + " * Plugins have callbacks that can be invoked by chisels and bits.\n"
+                + " * See their documentation for more information.\n"
+                + " * </p>\n"
+                + " */\n";
+
+        assertEquals(source, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void separatorWrapDoesNotMoveDotFromTrailingComment() {
         CheckstyleSeparatorWrapStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleSeparatorWrapStep.class, STEP_NAME);
         step.getOption().set("nl");
