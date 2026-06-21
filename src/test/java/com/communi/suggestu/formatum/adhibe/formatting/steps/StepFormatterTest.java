@@ -341,6 +341,46 @@ class StepFormatterTest {
     }
 
     @Test
+    void indentsTernaryBranchesInsideWrappedLambdaInvocationWithContinuationIndent() {
+        CheckstyleIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleIndentationStep.class, STEP_NAME);
+        step.getBasicOffset().set(4);
+        step.getCaseIndent().set(0);
+        step.getThrowsIndent().set(4);
+        step.getArrayInitIndent().set(4);
+        step.getLineWrappingIndentation().set(8);
+
+        String source = "class Example {\n"
+                + "\tString get() {\n"
+                + "\t\treturn DistExecutor.unsafeRunForDist(\n"
+                + "\t\t\t\t() -> () -> {\n"
+                + "\t\t\t\t\tfinal Result result = getResult();\n"
+                + "\t\t\t\t\treturn result.isOk() || result.canRetry()\n"
+                + "\t\t\t\t\t? result.messageGreen()\n"
+                + "\t\t\t\t\t: result.messageRed();\n"
+                + "\t\t\t\t},\n"
+                + "\t\t\t\t() -> () -> fallback()\n"
+                + "\t\t);\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tString get() {\n"
+                + "\t\treturn DistExecutor.unsafeRunForDist(\n"
+                + "\t\t\t\t() -> () -> {\n"
+                + "\t\t\t\t\tfinal Result result = getResult();\n"
+                + "\t\t\t\t\treturn result.isOk() || result.canRetry()\n"
+                + "\t\t\t\t\t\t\t? result.messageGreen()\n"
+                + "\t\t\t\t\t\t\t: result.messageRed();\n"
+                + "\t\t\t\t},\n"
+                + "\t\t\t\t() -> () -> fallback()\n"
+                + "\t\t);\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void appliesParenPadNoSpacePolicy() {
         CheckstyleParenPadStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleParenPadStep.class, STEP_NAME);
         step.getOption().set("nospace");

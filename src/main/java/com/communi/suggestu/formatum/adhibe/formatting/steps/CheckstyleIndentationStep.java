@@ -84,6 +84,16 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             return parenContexts.peek().anchorIndentTabs();
         }
 
+        if (startsWithTernaryContinuation(trimmed)) {
+            if (isInsideWrappedBraceBody(trimmed, parenContexts, braceIndentStack)) {
+                return braceIndentStack.peek() + 1 + continuationTabs;
+            }
+            if (!parenContexts.isEmpty()) {
+                return Math.max(blockIndent + continuationTabs, parenContexts.peek().anchorIndentTabs() + continuationTabs);
+            }
+            return Math.max(blockIndent + 1, blockIndent + continuationTabs);
+        }
+
         if (isInsideWrappedBraceBody(trimmed, parenContexts, braceIndentStack)) {
             return braceIndentStack.peek() + 1;
         }
@@ -101,10 +111,6 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         }
 
         if (trimmed.startsWith(".")) {
-            return Math.max(blockIndent + 1, blockIndent + continuationTabs);
-        }
-
-        if (startsWithTernaryContinuation(trimmed)) {
             return Math.max(blockIndent + 1, blockIndent + continuationTabs);
         }
 
