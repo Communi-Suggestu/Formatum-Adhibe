@@ -73,6 +73,12 @@ public abstract class CheckstyleRightCurlyStep extends FormattingStep {
                         for (int j = nextNonEmptyIndex; j > i; j--) {
                             lines.remove(j);
                         }
+                    } else if (startsWithClosingDelimiterContinuation(next)) {
+                        String indent = line.substring(0, closeIndex);
+                        lines.set(i, indent + "}" + next);
+                        for (int j = nextNonEmptyIndex; j > i; j--) {
+                            lines.remove(j);
+                        }
                     }
                 }
             }
@@ -119,6 +125,10 @@ public abstract class CheckstyleRightCurlyStep extends FormattingStep {
                 || text.startsWith("catch")
                 || text.startsWith("finally")
                 || text.startsWith("while");
+    }
+
+    private static boolean startsWithClosingDelimiterContinuation(String text) {
+        return text.startsWith(")") || text.startsWith("]");
     }
 
     private static String indentation(String text) {

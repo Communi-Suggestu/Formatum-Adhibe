@@ -944,6 +944,82 @@ class StepFormatterTest {
     }
 
     @Test
+    void formatsNestedLambdaChainWithoutExtraIndentOrBlankLines() {
+        CheckstyleIndentationStep indentation = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleIndentationStep.class, STEP_NAME);
+        indentation.getBasicOffset().set(4);
+        indentation.getCaseIndent().set(0);
+        indentation.getThrowsIndent().set(4);
+        indentation.getArrayInitIndent().set(4);
+        indentation.getLineWrappingIndentation().set(8);
+
+        CheckstyleRightCurlyStep rightCurly = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleRightCurlyStep.class, STEP_NAME);
+        rightCurly.getOption().set("same");
+
+        RemoveBlankLineBeforeClosingBraceStep removeBlankLines = ProjectBuilder.builder().build().getObjects().newInstance(RemoveBlankLineBeforeClosingBraceStep.class, STEP_NAME);
+
+        String source = "class Example {\n"
+                + "\t@Override\n"
+                + "\tpublic Map<BlockInformation, Integer> getContainedStates() {\n"
+                + "\t\treturn IntStream.range(0, getInventorySize())\n"
+                + "\t\t\t\t.mapToObj(this::getItem)\n"
+                + "\t\t\t\t.filter(stack -> stack.getItem() instanceof IBitItem)\n"
+                + "\t\t\t\t.map(stack -> {\n"
+                + "\t\t\t\t\t\tIBitItem bitItem = (IBitItem) stack.getItem();\n"
+                + "\t\t\t\t\t\treturn Maps.newHashMap(ImmutableMap.of(bitItem.getBlockInformation(stack), stack.getCount()));\n"
+                + "\t\t\t\t}\n"
+                + "\t\t\t\t)\n"
+                + "\t\t\t\t.reduce(\n"
+                + "\t\t\t\t\t\tMaps.newHashMap(),\n"
+                + "\t\t\t\t\t\t(blockStateIntegerHashMap, blockStateIntegerHashMap2) -> {\n"
+                + "\t\t\t\t\t\tfinal HashMap<BlockInformation, Integer> result = Maps.newHashMap(blockStateIntegerHashMap);\n"
+                + "\t\t\t\t\t\tblockStateIntegerHashMap2.forEach((state, count) -> {\n"
+                + "\t\t\t\t\t\t\t\tif (!result.containsKey(state)) {\n"
+                + "\t\t\t\t\t\t\t\tresult.put(state, count);\n"
+                + "\t\t\t\t\t\t\t\t} else {\n"
+                + "\t\t\t\t\t\t\t\tresult.put(state, result.get(state) + count);\n"
+                + "\t\t\t\t\t}\n"
+                + "\t\t\t\t\t\t}\n"
+                + "\t\t\t\t\t\t);\n\n"
+                + "\t\t\t\t\t\treturn result;\n"
+                + "\t\t\t\t\t\t}\n"
+                + "\t\t\t\t);\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\t@Override\n"
+                + "\tpublic Map<BlockInformation, Integer> getContainedStates() {\n"
+                + "\t\treturn IntStream.range(0, getInventorySize())\n"
+                + "\t\t\t\t.mapToObj(this::getItem)\n"
+                + "\t\t\t\t.filter(stack -> stack.getItem() instanceof IBitItem)\n"
+                + "\t\t\t\t.map(stack -> {\n"
+                + "\t\t\t\t\tIBitItem bitItem = (IBitItem) stack.getItem();\n"
+                + "\t\t\t\t\treturn Maps.newHashMap(ImmutableMap.of(bitItem.getBlockInformation(stack), stack.getCount()));\n"
+                + "\t\t\t\t})\n"
+                + "\t\t\t\t.reduce(\n"
+                + "\t\t\t\t\t\tMaps.newHashMap(),\n"
+                + "\t\t\t\t\t\t(blockStateIntegerHashMap, blockStateIntegerHashMap2) -> {\n"
+                + "\t\t\t\t\t\t\tfinal HashMap<BlockInformation, Integer> result = Maps.newHashMap(blockStateIntegerHashMap);\n"
+                + "\t\t\t\t\t\t\tblockStateIntegerHashMap2.forEach((state, count) -> {\n"
+                + "\t\t\t\t\t\t\t\tif (!result.containsKey(state)) {\n"
+                + "\t\t\t\t\t\t\t\t\tresult.put(state, count);\n"
+                + "\t\t\t\t\t\t\t\t} else {\n"
+                + "\t\t\t\t\t\t\t\t\tresult.put(state, result.get(state) + count);\n"
+                + "\t\t\t\t\t\t\t\t}\n"
+                + "\t\t\t\t\t\t\t});\n\n"
+                + "\t\t\t\t\t\t\treturn result;\n"
+                + "\t\t\t\t\t\t});\n"
+                + "\t}\n"
+                + "}\n";
+
+        String formatted = indentation.formatter().format("Example.java", source);
+        formatted = rightCurly.formatter().format("Example.java", formatted);
+        formatted = removeBlankLines.formatter().format("Example.java", formatted);
+
+        assertEquals(expected, formatted);
+    }
+
+    @Test
     void removesBlankLinesBeforeClosingParensAndMixedDelimiters() {
         RemoveBlankLineBeforeClosingBraceStep removeBlankLines = ProjectBuilder.builder().build().getObjects().newInstance(RemoveBlankLineBeforeClosingBraceStep.class, STEP_NAME);
 

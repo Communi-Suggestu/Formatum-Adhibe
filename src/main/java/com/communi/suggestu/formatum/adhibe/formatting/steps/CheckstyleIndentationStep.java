@@ -84,6 +84,10 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             return parenContexts.peek().anchorIndentTabs();
         }
 
+        if (isInsideWrappedBraceBody(trimmed, parenContexts, braceIndentStack)) {
+            return braceIndentStack.peek() + 1;
+        }
+
 
         if (!parenContexts.isEmpty()) {
             if (trimmed.startsWith("new ")) {
@@ -109,6 +113,16 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
 
     private static boolean startsWithClosingBrace(String trimmed) {
         return trimmed.startsWith("}");
+    }
+
+    private static boolean isInsideWrappedBraceBody(
+            String trimmed,
+            Deque<ParenContext> parenContexts,
+            Deque<Integer> braceIndentStack
+    ) {
+        return !parenContexts.isEmpty()
+                && !braceIndentStack.isEmpty()
+                && braceIndentStack.peek() >= parenContexts.peek().anchorIndentTabs();
     }
 
 
@@ -202,6 +216,9 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
     private static boolean shouldUseAppliedBraceIndent(String trimmed) {
         return trimmed.startsWith("new ")
                 || trimmed.startsWith(".")
+                || trimmed.startsWith("} else")
+                || trimmed.startsWith("} catch")
+                || trimmed.startsWith("} finally")
                 || trimmed.contains("->")
                 || isDeclarationLikeBlockOpener(trimmed);
     }
