@@ -46,6 +46,10 @@ public abstract class CheckstyleRightCurlyStep extends FormattingStep {
                 continue;
             }
 
+            if (!after.isEmpty() && startsWithClosingDelimiterContinuation(after)) {
+                continue;
+            }
+
             if (!after.isEmpty() && !startsWithContinuationKeyword(after)) {
                 String indent = line.substring(0, closeIndex);
                 lines.set(i, indent + "}");
