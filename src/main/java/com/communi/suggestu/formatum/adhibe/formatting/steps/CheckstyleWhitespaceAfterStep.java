@@ -24,6 +24,7 @@ public abstract class CheckstyleWhitespaceAfterStep extends FormattingStep {
         return text
                 .replaceAll(",(?=\\S)", ", ")
                 .replaceAll(";(?=\\S)", "; ")
+                .replaceAll("\\.\\.\\.(?=\\S)", "... ")
                 .replaceAll("\\b(if|for|while|switch|catch|synchronized|try)\\(", "$1 (");
     }
 }

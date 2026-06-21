@@ -458,6 +458,16 @@ class StepFormatterTest {
     }
 
     @Test
+    void whitespaceAfterInsertsSpaceAfterVarargsEllipsis() {
+        CheckstyleWhitespaceAfterStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAfterStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("ELLIPSIS"));
+
+        String source = "IChiselContextPreviewRendererRegistry register(final IChiselContextPreviewRenderer...renderers);\n";
+        String expected = "IChiselContextPreviewRendererRegistry register(final IChiselContextPreviewRenderer... renderers);\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void appliesWhitespaceAroundRules() {
         CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
         step.getTokens().set(java.util.List.of("ASSIGN", "EQUAL", "LITERAL_IF"));
