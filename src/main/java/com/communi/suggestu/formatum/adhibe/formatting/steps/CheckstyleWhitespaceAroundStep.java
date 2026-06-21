@@ -22,6 +22,7 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
 
     private String apply(String text) {
         String result = text;
+        result = normalizeShiftOperatorsInExpressions(result);
         result = normalizeRelationalOperators(result);
         result = normalizeTernaryOperators(result);
         result = result.replaceAll("(?<![<>=!+\\-*/%&|^])=(?!=)", " = ");
@@ -31,6 +32,59 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
         result = result.replace("{}", "{ }");
         result = result.replaceAll(" {2,}", " ");
         return result;
+    }
+
+    private static String normalizeShiftOperatorsInExpressions(String text) {
+        String[] lines = text.split("\\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            lines[i] = normalizeShiftOperatorsInLine(lines[i]);
+        }
+        return String.join("\n", lines);
+    }
+
+    private static String normalizeShiftOperatorsInLine(String line) {
+        String result = line;
+
+        int returnIndex = result.indexOf("return ");
+        if (returnIndex >= 0) {
+            int expressionStart = returnIndex + "return ".length();
+            String prefix = result.substring(0, expressionStart);
+            String expression = result.substring(expressionStart);
+            result = prefix + normalizeShiftOperators(expression);
+        }
+
+        int assignmentIndex = findAssignmentOperatorIndex(result);
+        if (assignmentIndex >= 0) {
+            String left = result.substring(0, assignmentIndex + 1);
+            String right = result.substring(assignmentIndex + 1);
+            result = left + normalizeShiftOperators(right);
+        }
+
+        return result;
+    }
+
+    private static String normalizeShiftOperators(String expression) {
+        String result = expression;
+        result = result.replaceAll("\\s*<<(?!=)\\s*", " << ");
+        result = result.replaceAll("(?<!<)\\s*>>(?![>=])\\s*", " >> ");
+        return result;
+    }
+
+    private static int findAssignmentOperatorIndex(String line) {
+        for (int i = 0; i < line.length() - 1; i++) {
+            char c = line.charAt(i);
+            char next = line.charAt(i + 1);
+            if (c != '=') {
+                continue;
+            }
+
+            char previous = i > 0 ? line.charAt(i - 1) : '\0';
+            if (next == '=' || previous == '=' || previous == '!' || previous == '<' || previous == '>') {
+                continue;
+            }
+            return i;
+        }
+        return -1;
     }
 
     private static String normalizeRelationalOperators(String text) {

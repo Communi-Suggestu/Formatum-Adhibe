@@ -612,6 +612,46 @@ class StepFormatterTest {
     }
 
     @Test
+    void whitespaceAroundNormalizesShiftOperatorsInReturnStatements() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("SL", "SR", "LITERAL_RETURN"));
+
+        String source = "int toMask(final int value) {\n"
+                + "\treturn value<<4;\n"
+                + "}\n"
+                + "int fromMask(final int value) {\n"
+                + "\treturn value>>2;\n"
+                + "}\n";
+
+        String expected = "int toMask(final int value) {\n"
+                + "\treturn value << 4;\n"
+                + "}\n"
+                + "int fromMask(final int value) {\n"
+                + "\treturn value >> 2;\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void whitespaceAroundNormalizesShiftOperatorsInAssignments() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("SL", "SR", "ASSIGN"));
+
+        String source = "void run(final int value) {\n"
+                + "\tint shiftedLeft=value<<3;\n"
+                + "\tint shiftedRight=value>>1;\n"
+                + "}\n";
+
+        String expected = "void run(final int value) {\n"
+                + "\tint shiftedLeft = value << 3;\n"
+                + "\tint shiftedRight = value >> 1;\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void doesNotSplitCompoundAssignmentOperators() {
         CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
         step.getTokens().set(java.util.List.of("ASSIGN", "PLUS_ASSIGN", "MINUS_ASSIGN"));
