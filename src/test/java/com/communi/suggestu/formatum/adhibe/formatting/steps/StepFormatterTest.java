@@ -7,6 +7,9 @@ import org.junit.jupiter.api.io.TempDir;
 import javax.tools.ToolProvider;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -941,6 +944,92 @@ class StepFormatterTest {
         String source = "void run() {\n\tif (flag) {\n\t\tcall();\n\t} else {\n\t\tother();\n\t}\n}\n";
         String expected = "void run() {\n\tif (flag) {\n\t\tcall();\n\t}\n\telse {\n\t\tother();\n\t}\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void formatsTheComparisonOperatorOfForLoops() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        CheckstyleGenericWhitespaceStep secondStep = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleGenericWhitespaceStep.class, STEP_NAME);
+
+        final String[] tokens = "ASSIGN,BAND,BAND_ASSIGN,BOR,BOR_ASSIGN,BSR,BSR_ASSIGN,BXOR,BXOR_ASSIGN,COLON,DIV_ASSIGN,DO_WHILE,EQUAL,GE,GT,LAMBDA,LAND,LCURLY,LE,LITERAL_CATCH,LITERAL_DO,LITERAL_ELSE,LITERAL_FINALLY,LITERAL_FOR,LITERAL_IF,LITERAL_RETURN,LITERAL_SWITCH,LITERAL_SYNCHRONIZED,LITERAL_TRY,LITERAL_WHILE,LOR,LT,MINUS_ASSIGN,MOD,MOD_ASSIGN,NOT_EQUAL,PLUS_ASSIGN,QUESTION,RCURLY,SL,SLIST,SL_ASSIGN,SR,SR_ASSIGN,STAR,STAR_ASSIGN,LITERAL_ASSERT,TYPE_EXTENSION_AND".split(",");
+        step.getTokens().set(Arrays.asList(tokens));
+
+        String source = "/**\n"
+            + "\t * Extracts a given amount of bits with the given blockstate from the the current inventory.\n"
+            + "\t *\n"
+            + "\t * @param blockInformation The blockstate.\n"
+            + "\t * @param count The amount of bits to extract.\n"
+            + "\t * @throws IllegalArgumentException when extraction is not possible.\n"
+            + "\t */\n"
+            + "\t@Override\n"
+            + "\tpublic void extract(\n"
+            + "\t\t\tfinal BlockInformation blockInformation,\n"
+            + "\t\t\tfinal int count) throws IllegalArgumentException {\n"
+            + "\t\tif (count == 0 || blockInformation.isAir()) {\n"
+            + "\t\t\treturn;\n"
+            + "\t\t}\n"
+            + "\n"
+            + "\t\tif (!canExtract(blockInformation, count)) {\n"
+            + "\t\t\tthrow new IllegalArgumentException(\"Can not extract: \" + blockInformation);\n"
+            + "\t\t}\n"
+            + "\n"
+            + "\t\tint toExtract = count;\n"
+            + "\n"
+            + "\t\tfor (int i = getInventorySize() - 1; i>= 0; i--) {\n"
+            + "\t\t\tfinal ItemStack stack = getItem(i);\n"
+            + "\n"
+            + "\t\t\tif (stack.getItem() instanceof final IBitItem bitItem) {\n"
+            + "\t\t\t\tif (bitItem.getBlockInformation(stack).equals(blockInformation)) {\n"
+            + "\t\t\t\t\tfinal int stackExtractCount = Math.min(toExtract, stack.getCount());\n"
+            + "\t\t\t\t\ttoExtract -= stackExtractCount;\n"
+            + "\n"
+            + "\t\t\t\t\tstack.setCount(stack.getCount() - stackExtractCount);\n"
+            + "\n"
+            + "\t\t\t\t\tsetItem(i, stack);\n"
+            + "\t\t\t\t}\n"
+            + "\t\t\t}\n"
+            + "\t\t}\n"
+            + "\t}";
+
+        String expected = "/**\n"
+            + "\t * Extracts a given amount of bits with the given blockstate from the the current inventory.\n"
+            + "\t *\n"
+            + "\t * @param blockInformation The blockstate.\n"
+            + "\t * @param count The amount of bits to extract.\n"
+            + "\t * @throws IllegalArgumentException when extraction is not possible.\n"
+            + "\t */\n"
+            + "\t@Override\n"
+            + "\tpublic void extract(\n"
+            + "\t\t\tfinal BlockInformation blockInformation,\n"
+            + "\t\t\tfinal int count) throws IllegalArgumentException {\n"
+            + "\t\tif (count == 0 || blockInformation.isAir()) {\n"
+            + "\t\t\treturn;\n"
+            + "\t\t}\n"
+            + "\n"
+            + "\t\tif (!canExtract(blockInformation, count)) {\n"
+            + "\t\t\tthrow new IllegalArgumentException(\"Can not extract: \" + blockInformation);\n"
+            + "\t\t}\n"
+            + "\n"
+            + "\t\tint toExtract = count;\n"
+            + "\n"
+            + "\t\tfor (int i = getInventorySize() - 1; i >= 0; i--) {\n"
+            + "\t\t\tfinal ItemStack stack = getItem(i);\n"
+            + "\n"
+            + "\t\t\tif (stack.getItem() instanceof final IBitItem bitItem) {\n"
+            + "\t\t\t\tif (bitItem.getBlockInformation(stack).equals(blockInformation)) {\n"
+            + "\t\t\t\t\tfinal int stackExtractCount = Math.min(toExtract, stack.getCount());\n"
+            + "\t\t\t\t\ttoExtract -= stackExtractCount;\n"
+            + "\n"
+            + "\t\t\t\t\tstack.setCount(stack.getCount() - stackExtractCount);\n"
+            + "\n"
+            + "\t\t\t\t\tsetItem(i, stack);\n"
+            + "\t\t\t\t}\n"
+            + "\t\t\t}\n"
+            + "\t\t}\n"
+            + "\t}";
+
+        var initial = step.formatter().format("Example.java", source);
+        assertEquals(expected, secondStep.formatter().format("Example.java", initial));
     }
 
     @Test
