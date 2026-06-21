@@ -99,11 +99,19 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             return Math.max(blockIndent + 1, blockIndent + continuationTabs);
         }
 
+        if (startsWithTernaryContinuation(trimmed)) {
+            return Math.max(blockIndent + 1, blockIndent + continuationTabs);
+        }
+
         return blockIndent;
     }
 
     private static boolean startsWithClosingBrace(String trimmed) {
         return trimmed.startsWith("}");
+    }
+
+    private static boolean startsWithTernaryContinuation(String trimmed) {
+        return trimmed.startsWith("?") || trimmed.startsWith(":");
     }
 
     private static int updateBlockIndent(int currentIndent, String line) {

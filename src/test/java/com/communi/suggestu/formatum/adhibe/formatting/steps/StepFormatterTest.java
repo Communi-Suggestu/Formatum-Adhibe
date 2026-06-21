@@ -312,6 +312,34 @@ class StepFormatterTest {
     }
 
     @Test
+    void indentsWrappedTernaryBranchesWithContinuationIndent() {
+        CheckstyleIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleIndentationStep.class, STEP_NAME);
+        step.getBasicOffset().set(4);
+        step.getCaseIndent().set(0);
+        step.getThrowsIndent().set(4);
+        step.getArrayInitIndent().set(4);
+        step.getLineWrappingIndentation().set(8);
+
+        String source = "class Example {\n"
+                + "\tdouble getValue(Direction direction, AABB bb) {\n"
+                + "\t\treturn direction.getAxisDirection() == Direction.AxisDirection.POSITIVE\n"
+                + "\t\t? bb.max(direction.getAxis())\n"
+                + "\t\t: bb.min(direction.getAxis());\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tdouble getValue(Direction direction, AABB bb) {\n"
+                + "\t\treturn direction.getAxisDirection() == Direction.AxisDirection.POSITIVE\n"
+                + "\t\t\t\t? bb.max(direction.getAxis())\n"
+                + "\t\t\t\t: bb.min(direction.getAxis());\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void appliesParenPadNoSpacePolicy() {
         CheckstyleParenPadStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleParenPadStep.class, STEP_NAME);
         step.getOption().set("nospace");
