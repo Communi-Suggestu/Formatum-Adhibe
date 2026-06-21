@@ -575,6 +575,24 @@ class StepFormatterTest {
     }
 
     @Test
+    void whitespaceAroundNormalizesComparisonOperatorsInClassicForHeaders() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("ASSIGN", "LT", "GT", "LE", "GE"));
+
+        String source = "for (int i = getInventorySize() - 1; i>= 0; i--) {\n"
+                + "}\n"
+                + "for (int i = 0; i <getInventorySize(); i++) {\n"
+                + "}\n";
+
+        String expected = "for (int i = getInventorySize() - 1; i >= 0; i--) {\n"
+                + "}\n"
+                + "for (int i = 0; i < getInventorySize(); i++) {\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void insertsNeedBracesForConfiguredTokens() {
         CheckstyleNeedBracesStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleNeedBracesStep.class, STEP_NAME);
         step.getTokens().set(java.util.List.of("LITERAL_IF", "LITERAL_FOR", "LITERAL_WHILE"));

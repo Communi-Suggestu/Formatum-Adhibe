@@ -25,9 +25,105 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
         result = result.replaceAll("(?<![<>=!+\\-*/%&|^])=(?!=)", " = ");
         result = result.replaceAll("(?<![!])!=(?!=)", " != ");
         result = result.replace("==", " == ");
+        result = normalizeClassicForConditionComparisons(result);
         result = result.replace("{}", "{ }");
         result = result.replaceAll(" {2,}", " ");
         return result;
+    }
+
+    private static String normalizeClassicForConditionComparisons(String text) {
+        String[] lines = text.split("\\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            lines[i] = normalizeLineForHeaderComparisons(lines[i]);
+        }
+        return String.join("\n", lines);
+    }
+
+    private static String normalizeLineForHeaderComparisons(String line) {
+        int scan = 0;
+        String result = line;
+        while (scan < result.length()) {
+            int forIndex = result.indexOf("for", scan);
+            if (forIndex < 0) {
+                break;
+            }
+            if (!isKeyword(result, forIndex, "for")) {
+                scan = forIndex + 3;
+                continue;
+            }
+
+            int afterKeyword = forIndex + 3;
+            while (afterKeyword < result.length() && Character.isWhitespace(result.charAt(afterKeyword))) {
+                afterKeyword++;
+            }
+            if (afterKeyword >= result.length() || result.charAt(afterKeyword) != '(') {
+                scan = forIndex + 3;
+                continue;
+            }
+
+            int closingParen = findMatchingParen(result, afterKeyword);
+            if (closingParen < 0) {
+                break;
+            }
+
+            String header = result.substring(afterKeyword + 1, closingParen);
+            String normalizedHeader = normalizeClassicForHeader(header);
+            result = result.substring(0, afterKeyword + 1) + normalizedHeader + result.substring(closingParen);
+            scan = afterKeyword + 1 + normalizedHeader.length();
+        }
+        return result;
+    }
+
+    private static String normalizeClassicForHeader(String header) {
+        int firstSemicolon = header.indexOf(';');
+        if (firstSemicolon < 0) {
+            return header;
+        }
+
+        int secondSemicolon = header.indexOf(';', firstSemicolon + 1);
+        if (secondSemicolon < 0 || header.indexOf(';', secondSemicolon + 1) >= 0) {
+            return header;
+        }
+
+        String init = header.substring(0, firstSemicolon + 1);
+        String condition = header.substring(firstSemicolon + 1, secondSemicolon);
+        String update = header.substring(secondSemicolon);
+
+        return init + normalizeComparisonOperators(condition) + update;
+    }
+
+    private static String normalizeComparisonOperators(String input) {
+        String result = input;
+        result = result.replaceAll("\\s*<=\\s*", " <= ");
+        result = result.replaceAll("\\s*>=\\s*", " >= ");
+        result = result.replaceAll("\\s*==\\s*", " == ");
+        result = result.replaceAll("\\s*!=\\s*", " != ");
+        result = result.replaceAll("(?<!<)\\s*<\\s*(?![<=])", " < ");
+        result = result.replaceAll("(?<!>)\\s*>\\s*(?![>=])", " > ");
+        return result;
+    }
+
+    private static int findMatchingParen(String text, int openParenIndex) {
+        int depth = 0;
+        for (int i = openParenIndex; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '(') {
+                depth++;
+            } else if (c == ')') {
+                depth--;
+                if (depth == 0) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static boolean isKeyword(String text, int start, String keyword) {
+        int end = start + keyword.length();
+        boolean leftBoundary = start == 0 || !Character.isJavaIdentifierPart(text.charAt(start - 1));
+        boolean rightBoundary = end >= text.length() || !Character.isJavaIdentifierPart(text.charAt(end));
+        return leftBoundary && rightBoundary;
     }
 }
 
