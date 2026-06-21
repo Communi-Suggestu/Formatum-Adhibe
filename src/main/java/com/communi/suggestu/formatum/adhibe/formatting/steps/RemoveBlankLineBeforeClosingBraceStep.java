@@ -21,7 +21,7 @@ public abstract class RemoveBlankLineBeforeClosingBraceStep extends FormattingSt
             while (i < lines.size() - 1) {
                 String current = lines.get(i);
                 String next = lines.get(i + 1);
-                if (current.isBlank() && next.stripLeading().startsWith("}")) {
+                if (current.isBlank() && isClosingDelimiterLine(next.stripLeading())) {
                     lines.remove(i);
                     // do not advance i; check the previous line again
                 } else {
@@ -30,5 +30,13 @@ public abstract class RemoveBlankLineBeforeClosingBraceStep extends FormattingSt
             }
             return String.join("\n", lines);
         };
+    }
+
+    private static boolean isClosingDelimiterLine(String trimmed) {
+        return trimmed.startsWith("}")
+                || trimmed.startsWith(")")
+                || trimmed.startsWith(");")
+                || trimmed.startsWith("});")
+                || trimmed.startsWith("},");
     }
 }

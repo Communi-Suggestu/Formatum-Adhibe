@@ -84,9 +84,6 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             return parenContexts.peek().anchorIndentTabs();
         }
 
-        if (isInsideWrappedBraceBlock(parenContexts, braceIndentStack)) {
-            return Math.max(blockIndent, braceIndentStack.peek() + 1);
-        }
 
         if (!parenContexts.isEmpty()) {
             if (trimmed.startsWith("new ")) {
@@ -114,11 +111,6 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         return trimmed.startsWith("}");
     }
 
-    private static boolean isInsideWrappedBraceBlock(Deque<ParenContext> parenContexts, Deque<Integer> braceIndentStack) {
-        return !parenContexts.isEmpty()
-                && !braceIndentStack.isEmpty()
-                && braceIndentStack.peek() >= parenContexts.peek().anchorIndentTabs();
-    }
 
     private static boolean startsWithTernaryContinuation(String trimmed) {
         return trimmed.startsWith("?") || trimmed.startsWith(":");

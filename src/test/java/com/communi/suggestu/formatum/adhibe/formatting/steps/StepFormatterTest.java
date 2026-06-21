@@ -340,52 +340,6 @@ class StepFormatterTest {
     }
 
     @Test
-    void keepsWrappedLambdaBodyIndentedRelativeToLambdaBrace() {
-        CheckstyleIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleIndentationStep.class, STEP_NAME);
-        step.getBasicOffset().set(4);
-        step.getCaseIndent().set(0);
-        step.getThrowsIndent().set(4);
-        step.getArrayInitIndent().set(4);
-        step.getLineWrappingIndentation().set(8);
-
-        String source = "class Example {\n"
-                + "\tint run() {\n"
-                + "\t\treturn IntStream.range(0, 10)\n"
-                + "\t\t\t\t.mapToInt(value -> {\n"
-                + "\t\t\t\t\t\tint mapped = value + 1;\n"
-                + "\n"
-                + "\t\t\t\t\t\tif (mapped > 5) {\n"
-                + "\t\t\t\t\t\treturn mapped;\n"
-                + "\t\t\t\t\t\t}\n"
-                + "\n"
-                + "\t\t\t\t\t\treturn 0;\n"
-                + "\t\t\t\t}\n"
-                + "\t\t\t\t)\n"
-                + "\t\t\t\t.sum();\n"
-                + "\t}\n"
-                + "}\n";
-
-        String expected = "class Example {\n"
-                + "\tint run() {\n"
-                + "\t\treturn IntStream.range(0, 10)\n"
-                + "\t\t\t\t.mapToInt(value -> {\n"
-                + "\t\t\t\t\tint mapped = value + 1;\n"
-                + "\n"
-                + "\t\t\t\t\tif (mapped > 5) {\n"
-                + "\t\t\t\t\t\treturn mapped;\n"
-                + "\t\t\t\t\t}\n"
-                + "\n"
-                + "\t\t\t\t\treturn 0;\n"
-                + "\t\t\t\t}\n"
-                + "\t\t\t\t)\n"
-                + "\t\t\t\t.sum();\n"
-                + "\t}\n"
-                + "}\n";
-
-        assertEquals(expected, step.formatter().format("Example.java", source));
-    }
-
-    @Test
     void appliesParenPadNoSpacePolicy() {
         CheckstyleParenPadStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleParenPadStep.class, STEP_NAME);
         step.getOption().set("nospace");
@@ -987,5 +941,20 @@ class StepFormatterTest {
         String source = "void run() {\n\tif (flag) {\n\t\tcall();\n\t} else {\n\t\tother();\n\t}\n}\n";
         String expected = "void run() {\n\tif (flag) {\n\t\tcall();\n\t}\n\telse {\n\t\tother();\n\t}\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void removesBlankLinesBeforeClosingParensAndMixedDelimiters() {
+        RemoveBlankLineBeforeClosingBraceStep removeBlankLines = ProjectBuilder.builder().build().getObjects().newInstance(RemoveBlankLineBeforeClosingBraceStep.class, STEP_NAME);
+
+        // Test that blank lines before closing ) are removed
+        String source1 = "{\n\tcall();\n}\n\n)";
+        String expected1 = "{\n\tcall();\n}\n)";
+        assertEquals(expected1, removeBlankLines.formatter().format("Example.java", source1));
+
+        // Test that blank lines before }); are removed
+        String source2 = "forEach(item -> {\n\tprocess(item);\n}\n\n);";
+        String expected2 = "forEach(item -> {\n\tprocess(item);\n}\n);";
+        assertEquals(expected2, removeBlankLines.formatter().format("Example.java", source2));
     }
 }
