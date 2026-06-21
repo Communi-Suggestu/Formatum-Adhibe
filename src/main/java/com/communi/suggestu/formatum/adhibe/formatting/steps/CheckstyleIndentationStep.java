@@ -43,6 +43,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         Deque<Integer> braceIndentStack = new ArrayDeque<>();
         int continuationTabs = Math.max(1, getLineWrappingIndentation().getOrElse(8) / Math.max(1, getBasicOffset().getOrElse(4)));
         int caseOffset = Math.max(0, getCaseIndent().getOrElse(0) / Math.max(1, getBasicOffset().getOrElse(4)));
+        int inheritanceContinuationIndent = -1;
 
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
@@ -51,11 +52,24 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
                 continue;
             }
 
-            int effectiveIndent = determineIndent(trimmed, blockIndent, parenContexts, braceIndentStack, continuationTabs, caseOffset);
+            int effectiveIndent;
+            if (inheritanceContinuationIndent >= 0 && !startsWithClosingBrace(trimmed)) {
+                effectiveIndent = inheritanceContinuationIndent;
+            } else {
+                effectiveIndent = determineIndent(trimmed, blockIndent, parenContexts, braceIndentStack, continuationTabs, caseOffset);
+            }
             lines.set(i, "\t".repeat(Math.max(0, effectiveIndent)) + trimmed);
-            updateBraceIndentStack(braceIndentStack, trimmed, effectiveIndent, blockIndent, parenContexts);
+            boolean insideInheritanceContinuation = inheritanceContinuationIndent >= 0;
+            updateBraceIndentStack(braceIndentStack, trimmed, effectiveIndent, blockIndent, parenContexts, insideInheritanceContinuation);
             blockIndent = updateBlockIndent(blockIndent, trimmed);
             updateParenContexts(parenContexts, trimmed, effectiveIndent);
+
+            if (inheritanceContinuationIndent >= 0 && !trimmed.endsWith(",")) {
+                inheritanceContinuationIndent = -1;
+            }
+            if (inheritanceContinuationIndent < 0 && startsWrappedInheritanceList(trimmed)) {
+                inheritanceContinuationIndent = effectiveIndent + continuationTabs;
+            }
         }
 
         return String.join("\n", lines);
@@ -136,6 +150,10 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         return trimmed.startsWith("?") || trimmed.startsWith(":");
     }
 
+    private static boolean startsWrappedInheritanceList(String trimmed) {
+        return (trimmed.contains(" extends ") || trimmed.contains(" implements ")) && trimmed.endsWith(",");
+    }
+
     private static int updateBlockIndent(int currentIndent, String line) {
         int indent = currentIndent;
         boolean inString = false;
@@ -177,7 +195,8 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             String line,
             int appliedIndentTabs,
             int blockIndent,
-            Deque<ParenContext> parenContexts
+            Deque<ParenContext> parenContexts,
+            boolean insideInheritanceContinuation
     ) {
         boolean inString = false;
         boolean inChar = false;
@@ -211,7 +230,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
                 }
             } else if (c == '{') {
                 int anchorIndent = appliedIndentTabs;
-                if (!parenContexts.isEmpty() && !shouldUseAppliedBraceIndent(trimmed)) {
+                if (insideInheritanceContinuation || (!parenContexts.isEmpty() && !shouldUseAppliedBraceIndent(trimmed))) {
                     anchorIndent = blockIndent;
                 }
                 braceIndentStack.push(anchorIndent);

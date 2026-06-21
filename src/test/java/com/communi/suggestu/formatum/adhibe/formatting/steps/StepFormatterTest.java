@@ -313,6 +313,34 @@ class StepFormatterTest {
     }
 
     @Test
+    void indentsWrappedInterfaceExtendsListWithContinuationIndent() {
+        CheckstyleIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleIndentationStep.class, STEP_NAME);
+        step.getBasicOffset().set(4);
+        step.getCaseIndent().set(0);
+        step.getThrowsIndent().set(4);
+        step.getArrayInitIndent().set(4);
+        step.getLineWrappingIndentation().set(8);
+
+        String source = "public interface IMultiStateBlockEntity extends IWorldAreaAccessor,\n"
+                + "IWorldAreaMutator,\n"
+                + "IBatchedAreaMutator,\n"
+                + "IGenerallyModifiableAreaMutator,\n"
+                + "IAreaAccessorWithVoxelShape,\n"
+                + "ISingleBlockAxisAlignedAreaAccessor {\n"
+                + "}\n";
+
+        String expected = "public interface IMultiStateBlockEntity extends IWorldAreaAccessor,\n"
+                + "\t\tIWorldAreaMutator,\n"
+                + "\t\tIBatchedAreaMutator,\n"
+                + "\t\tIGenerallyModifiableAreaMutator,\n"
+                + "\t\tIAreaAccessorWithVoxelShape,\n"
+                + "\t\tISingleBlockAxisAlignedAreaAccessor {\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void indentsWrappedTernaryBranchesWithContinuationIndent() {
         CheckstyleIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleIndentationStep.class, STEP_NAME);
         step.getBasicOffset().set(4);
