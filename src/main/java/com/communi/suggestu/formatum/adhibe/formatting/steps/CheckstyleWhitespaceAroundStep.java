@@ -40,6 +40,9 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
         // Keep this narrow to avoid rewriting generic type arguments.
         result = result.replaceAll("([\\w)\\]])\\s*<\\s*(-?\\d)", "$1 < $2");
         result = result.replaceAll("([\\w)\\]])\\s*>\\s*(-?\\d)", "$1 > $2");
+        // Handle method/array expression comparisons against identifiers in method bodies.
+        result = result.replaceAll("([)\\]])\\s*<\\s*([A-Za-z_$][A-Za-z0-9_$]*)", "$1 < $2");
+        result = result.replaceAll("([)\\]])\\s*>\\s*([A-Za-z_$][A-Za-z0-9_$]*)", "$1 > $2");
         return result;
     }
 

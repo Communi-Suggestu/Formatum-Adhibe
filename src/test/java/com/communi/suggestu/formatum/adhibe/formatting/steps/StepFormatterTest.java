@@ -542,6 +542,66 @@ class StepFormatterTest {
     }
 
     @Test
+    void whitespaceAroundNormalizesComparisonOperatorInBooleanReturnExpression() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("GT", "LITERAL_RETURN", "ASSIGN"));
+
+        String source = "default boolean tryDamageItem(final int damage) {\n"
+                + "\treturn this.tryDamageItemAndDo(damage, () -> { }, () -> { })> 0;\n"
+                + "\tfinal boolean damaged = this.tryDamageItemAndDo(damage, () -> { }, () -> { })> threshold;\n"
+                + "}\n";
+
+        String expected = "default boolean tryDamageItem(final int damage) {\n"
+                + "\treturn this.tryDamageItemAndDo(damage, () -> { }, () -> { }) > 0;\n"
+                + "\tfinal boolean damaged = this.tryDamageItemAndDo(damage, () -> { }, () -> { }) > threshold;\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void whitespaceAroundNormalizesLeGeComparisonOperatorsInBooleanReturnExpression() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("LE", "GE", "LITERAL_RETURN"));
+
+        String source = "default boolean isWithinBounds(final int damage) {\n"
+                + "\treturn this.tryDamageItemAndDo(damage, () -> { }, () -> { })<= maxDamage;\n"
+                + "}\n"
+                + "default boolean isOverLimit(final int damage) {\n"
+                + "\treturn this.tryDamageItemAndDo(damage, () -> { }, () -> { })>= limit;\n"
+                + "}\n";
+
+        String expected = "default boolean isWithinBounds(final int damage) {\n"
+                + "\treturn this.tryDamageItemAndDo(damage, () -> { }, () -> { }) <= maxDamage;\n"
+                + "}\n"
+                + "default boolean isOverLimit(final int damage) {\n"
+                + "\treturn this.tryDamageItemAndDo(damage, () -> { }, () -> { }) >= limit;\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void whitespaceAroundNormalizesLeGeComparisonOperatorsAssignedToBooleanVariables() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("LE", "GE", "ASSIGN"));
+
+        String source = "default boolean evaluateDamageWindow(final int damage) {\n"
+                + "\tfinal boolean underCap = this.tryDamageItemAndDo(damage, () -> { }, () -> { })<= maxDamage;\n"
+                + "\tfinal boolean overFloor = this.tryDamageItemAndDo(damage, () -> { }, () -> { })>= minDamage;\n"
+                + "\treturn underCap && overFloor;\n"
+                + "}\n";
+
+        String expected = "default boolean evaluateDamageWindow(final int damage) {\n"
+                + "\tfinal boolean underCap = this.tryDamageItemAndDo(damage, () -> { }, () -> { }) <= maxDamage;\n"
+                + "\tfinal boolean overFloor = this.tryDamageItemAndDo(damage, () -> { }, () -> { }) >= minDamage;\n"
+                + "\treturn underCap && overFloor;\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void doesNotSplitCompoundAssignmentOperators() {
         CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
         step.getTokens().set(java.util.List.of("ASSIGN", "PLUS_ASSIGN", "MINUS_ASSIGN"));
