@@ -22,6 +22,8 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
 
     private String apply(String text) {
         String result = text;
+        result = normalizeRelationalOperators(result);
+        result = normalizeTernaryOperators(result);
         result = result.replaceAll("(?<![<>=!+\\-*/%&|^])=(?!=)", " = ");
         result = result.replaceAll("(?<![!])!=(?!=)", " != ");
         result = result.replace("==", " == ");
@@ -29,6 +31,29 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
         result = result.replace("{}", "{ }");
         result = result.replaceAll(" {2,}", " ");
         return result;
+    }
+
+    private static String normalizeRelationalOperators(String text) {
+        String result = text;
+        result = result.replaceAll("\\s*<=\\s*", " <= ");
+        result = result.replaceAll("\\s*>=\\s*", " >= ");
+        // Keep this narrow to avoid rewriting generic type arguments.
+        result = result.replaceAll("([\\w)\\]])\\s*<\\s*(-?\\d)", "$1 < $2");
+        result = result.replaceAll("([\\w)\\]])\\s*>\\s*(-?\\d)", "$1 > $2");
+        return result;
+    }
+
+    private static String normalizeTernaryOperators(String text) {
+        String[] lines = text.split("\\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            if (!lines[i].contains("?")) {
+                continue;
+            }
+
+            lines[i] = lines[i].replaceAll("\\s*\\?\\s*", " ? ");
+            lines[i] = lines[i].replaceAll("(?<!:)\\s*:(?!:)\\s*", " : ");
+        }
+        return String.join("\n", lines);
     }
 
     private static String normalizeClassicForConditionComparisons(String text) {

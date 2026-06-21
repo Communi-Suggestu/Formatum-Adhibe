@@ -440,6 +440,80 @@ class StepFormatterTest {
     }
 
     @Test
+    void whitespaceAroundNormalizesTernaryOperatorsInsideSwitchExpressionBranches() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("QUESTION", "COLON", "LT", "GT", "LE", "GE"));
+
+        String source = "private Vec3 clampVectorToBlockAlongAxis(final Vec3 v, final Direction.Axis axis) {\n"
+                + "\tswitch (axis) {\n"
+                + "\t\tcase X -> {\n"
+                + "\t\t\treturn new Vec3(v.x() <0 ? 0 : (v.x()>= 1 ? 1 - ONE_THOUSANDS : v.x()), v.y(), v.z());\n"
+                + "\t\t}\n"
+                + "\t\tcase Y -> {\n"
+                + "\t\t\treturn new Vec3(v.x(), v.y() <0 ? 0 : (v.y()>= 1 ? 1 - ONE_THOUSANDS : v.y()), v.z());\n"
+                + "\t\t}\n"
+                + "\t\tcase Z -> {\n"
+                + "\t\t\treturn new Vec3(v.x(), v.y(), v.z() <0 ? 0 : (v.z()>= 1 ? 1 - ONE_THOUSANDS : v.z()));\n"
+                + "\t\t}\n"
+                + "\t\tdefault -> throw new IllegalStateException(\"Unexpected value: \" + axis);\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "private Vec3 clampVectorToBlockAlongAxis(final Vec3 v, final Direction.Axis axis) {\n"
+                + "\tswitch (axis) {\n"
+                + "\t\tcase X -> {\n"
+                + "\t\t\treturn new Vec3(v.x() < 0 ? 0 : (v.x() >= 1 ? 1 - ONE_THOUSANDS : v.x()), v.y(), v.z());\n"
+                + "\t\t}\n"
+                + "\t\tcase Y -> {\n"
+                + "\t\t\treturn new Vec3(v.x(), v.y() < 0 ? 0 : (v.y() >= 1 ? 1 - ONE_THOUSANDS : v.y()), v.z());\n"
+                + "\t\t}\n"
+                + "\t\tcase Z -> {\n"
+                + "\t\t\treturn new Vec3(v.x(), v.y(), v.z() < 0 ? 0 : (v.z() >= 1 ? 1 - ONE_THOUSANDS : v.z()));\n"
+                + "\t\t}\n"
+                + "\t\tdefault -> throw new IllegalStateException(\"Unexpected value: \" + axis);\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void whitespaceAroundNormalizesRelationalOperatorsInLambdaContainedIfElseIf() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("GE", "LE", "LITERAL_IF", "LITERAL_ELSE"));
+
+        String source = "default boolean validateBuildHeights() {\n"
+                + "\treturn getMutator().map(mutator -> {\n"
+                + "\t\tfinal BlockPos heightPos = mutator.getInWorldEndBlockPoint();\n\n"
+                + "\t\tif (heightPos.getY()>= getWorld().getMaxY()) {\n"
+                + "\t\t\tsetError(LocalStrings.ChiselAttemptFailedAttemptTooHigh.getText());\n"
+                + "\t\t\treturn false;\n"
+                + "\t\t} else if (heightPos.getY() <= getWorld().getMinY()) {\n"
+                + "\t\t\tsetError(LocalStrings.ChiselAttemptFailedAttemptTooLow.getText());\n"
+                + "\t\t\treturn false;\n"
+                + "\t\t}\n\n"
+                + "\t\treturn true;\n"
+                + "\t}).orElse(true);\n"
+                + "}\n";
+
+        String expected = "default boolean validateBuildHeights() {\n"
+                + "\treturn getMutator().map(mutator -> {\n"
+                + "\t\tfinal BlockPos heightPos = mutator.getInWorldEndBlockPoint();\n\n"
+                + "\t\tif (heightPos.getY() >= getWorld().getMaxY()) {\n"
+                + "\t\t\tsetError(LocalStrings.ChiselAttemptFailedAttemptTooHigh.getText());\n"
+                + "\t\t\treturn false;\n"
+                + "\t\t} else if (heightPos.getY() <= getWorld().getMinY()) {\n"
+                + "\t\t\tsetError(LocalStrings.ChiselAttemptFailedAttemptTooLow.getText());\n"
+                + "\t\t\treturn false;\n"
+                + "\t\t}\n\n"
+                + "\t\treturn true;\n"
+                + "\t}).orElse(true);\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void doesNotSplitCompoundAssignmentOperators() {
         CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
         step.getTokens().set(java.util.List.of("ASSIGN", "PLUS_ASSIGN", "MINUS_ASSIGN"));
