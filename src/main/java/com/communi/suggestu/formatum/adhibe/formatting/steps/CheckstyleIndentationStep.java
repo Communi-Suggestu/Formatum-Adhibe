@@ -44,6 +44,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         int continuationTabs = Math.max(1, getLineWrappingIndentation().getOrElse(8) / Math.max(1, getBasicOffset().getOrElse(4)));
         int caseOffset = Math.max(0, getCaseIndent().getOrElse(0) / Math.max(1, getBasicOffset().getOrElse(4)));
         int inheritanceContinuationIndent = -1;
+        boolean previousLineEndedWithAssignment = false;
 
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
@@ -53,10 +54,11 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             }
 
             int effectiveIndent;
+            boolean assignmentContinuation = previousLineEndedWithAssignment && !startsWithClosingBrace(trimmed);
             if (inheritanceContinuationIndent >= 0 && !startsWithClosingBrace(trimmed)) {
                 effectiveIndent = inheritanceContinuationIndent;
             } else {
-                effectiveIndent = determineIndent(trimmed, blockIndent, parenContexts, braceIndentStack, continuationTabs, caseOffset);
+                effectiveIndent = determineIndent(trimmed, blockIndent, parenContexts, braceIndentStack, continuationTabs, caseOffset, assignmentContinuation);
             }
             lines.set(i, "\t".repeat(Math.max(0, effectiveIndent)) + trimmed);
             boolean insideInheritanceContinuation = inheritanceContinuationIndent >= 0;
@@ -70,6 +72,8 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             if (inheritanceContinuationIndent < 0 && startsWrappedInheritanceList(trimmed)) {
                 inheritanceContinuationIndent = effectiveIndent + continuationTabs;
             }
+
+            previousLineEndedWithAssignment = endsWithStandaloneAssignment(trimmed);
         }
 
         return String.join("\n", lines);
@@ -81,7 +85,8 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             Deque<ParenContext> parenContexts,
             Deque<Integer> braceIndentStack,
             int continuationTabs,
-            int caseOffset
+            int caseOffset,
+            boolean assignmentContinuation
     ) {
         if (startsWithClosingBrace(trimmed)) {
             if (!braceIndentStack.isEmpty()) {
@@ -106,6 +111,10 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
                 return Math.max(blockIndent + continuationTabs, parenContexts.peek().anchorIndentTabs() + continuationTabs);
             }
             return Math.max(blockIndent + 1, blockIndent + continuationTabs);
+        }
+
+        if (assignmentContinuation) {
+            return Math.max(blockIndent + 1, blockIndent + Math.max(1, continuationTabs - 1));
         }
 
         if (isInsideWrappedBraceBody(trimmed, parenContexts, braceIndentStack)) {
@@ -152,6 +161,27 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
 
     private static boolean startsWrappedInheritanceList(String trimmed) {
         return (trimmed.contains(" extends ") || trimmed.contains(" implements ")) && trimmed.endsWith(",");
+    }
+
+    private static boolean endsWithStandaloneAssignment(String trimmed) {
+        if (!trimmed.endsWith("=")) {
+            return false;
+        }
+
+        int index = trimmed.length() - 1;
+        char previous = index > 0 ? trimmed.charAt(index - 1) : '\0';
+        return previous != '='
+                && previous != '!'
+                && previous != '<'
+                && previous != '>'
+                && previous != '+'
+                && previous != '-'
+                && previous != '*'
+                && previous != '/'
+                && previous != '%'
+                && previous != '&'
+                && previous != '|'
+                && previous != '^';
     }
 
     private static int updateBlockIndent(int currentIndent, String line) {
@@ -240,7 +270,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
 
     private static boolean shouldUseAppliedBraceIndent(String trimmed) {
         return trimmed.startsWith("new ")
-                || trimmed.startsWith(".")
+                || (trimmed.startsWith(".") && !trimmed.matches(".*\\)\\)\\s*\\{$"))
                 || isTryBlockOpener(trimmed)
                 || trimmed.startsWith("} else")
                 || trimmed.startsWith("} catch")
@@ -258,9 +288,14 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             return false;
         }
 
-        // Wrapped boolean condition continuations like `!predicate(...)) {` should close at
-        // structural indent of the owning if/else-if, not at continuation indent.
-        if (trimmed.matches("^[!~].*\\)\\s*\\{$") || trimmed.matches("^(this|super)\\..*\\)\\s*\\{$")) {
+        // Wrapped boolean condition continuations should close at structural indent of the
+        // owning if/else-if, not at continuation indent.
+        if (trimmed.matches("^[!~].*\\)\\s*\\{$")
+                || trimmed.matches("^(this|super)\\..*\\)\\s*\\{$")) {
+            return false;
+        }
+
+        if (trimmed.startsWith(".") && trimmed.matches(".*\\)\\)\\s*\\{$")) {
             return false;
         }
 

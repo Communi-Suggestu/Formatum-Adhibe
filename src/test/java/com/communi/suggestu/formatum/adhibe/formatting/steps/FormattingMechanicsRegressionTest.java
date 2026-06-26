@@ -209,5 +209,75 @@ class FormattingMechanicsRegressionTest {
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 
+    @Test
+    void keepsBodyAndElseAlignedForWrappedIfConditionChains() {
+        CheckstyleIndentationStep step = indentationStep();
+
+        String source = "class Example {\n"
+                + "\tvoid render() {\n"
+                + "\t\tif (potentialPlacingContext.isPresent()) {\n"
+                + "\t\t\tfinal IChiselingContext placingContext = potentialPlacingContext.get();\n"
+                + "\t\t\tif (placingContext.getMode() == chiselMode && potentialPlacingContext.get()\n"
+                + "\t\t\t\t\t.getMode()\n"
+                + "\t\t\t\t\t.isStillValid(playerEntity, potentialPlacingContext.get(), ChiselingOperation.PLACING)) {\n"
+                + "\t\t\t\tIChiselContextPreviewRendererRegistry.getInstance()\n"
+                + "\t\t\t\t\t\t.getCurrent()\n"
+                + "\t\t\t\t\t\t.renderExistingContextsBoundingBox(worldRenderer, matrixStack, bufferSource, levelRenderState, partialTicks, placingContext);\n"
+                + "\t\t\t\t\t} else {\n"
+                + "\t\t\t\tILocalChiselingContextCache.getInstance().clear(ChiselingOperation.PLACING);\n"
+                + "\t\t\t\t\t}\n"
+                + "\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tvoid render() {\n"
+                + "\t\tif (potentialPlacingContext.isPresent()) {\n"
+                + "\t\t\tfinal IChiselingContext placingContext = potentialPlacingContext.get();\n"
+                + "\t\t\tif (placingContext.getMode() == chiselMode && potentialPlacingContext.get()\n"
+                + "\t\t\t\t\t.getMode()\n"
+                + "\t\t\t\t\t.isStillValid(playerEntity, potentialPlacingContext.get(), ChiselingOperation.PLACING)) {\n"
+                + "\t\t\t\tIChiselContextPreviewRendererRegistry.getInstance()\n"
+                + "\t\t\t\t\t\t.getCurrent()\n"
+                + "\t\t\t\t\t\t.renderExistingContextsBoundingBox(worldRenderer, matrixStack, bufferSource, levelRenderState, partialTicks, placingContext);\n"
+                + "\t\t\t} else {\n"
+                + "\t\t\t\tILocalChiselingContextCache.getInstance().clear(ChiselingOperation.PLACING);\n"
+                + "\t\t\t}\n"
+                + "\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void keepsWrappedAssignmentAndTernaryIndentedWithoutTrailingAssignSpace() {
+        CheckstyleWhitespaceAroundStep whitespace = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        whitespace.getTokens().set(java.util.List.of("ASSIGN", "QUESTION", "COLON"));
+        CheckstyleIndentationStep indentation = indentationStep();
+
+        String source = "class Example {\n"
+                + "\tvoid run() {\n"
+                + "\t\tfinal List<BlockTintSource> tintSources = \n"
+                + "\t\tinformation.isFluid()\n"
+                + "\t\t\t\t? getFluidTintSources()\n"
+                + "\t\t\t\t: Minecraft.getInstance().getBlockColors().getTintSources(information.blockState());\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tvoid run() {\n"
+                + "\t\tfinal List<BlockTintSource> tintSources =\n"
+                + "\t\t\tinformation.isFluid()\n"
+                + "\t\t\t\t? getFluidTintSources()\n"
+                + "\t\t\t\t: Minecraft.getInstance().getBlockColors().getTintSources(information.blockState());\n"
+                + "\t}\n"
+                + "}\n";
+
+        String afterWhitespace = whitespace.formatter().format("Example.java", source);
+        String formatted = indentation.formatter().format("Example.java", afterWhitespace);
+        assertEquals(expected, formatted);
+    }
+
 }
 
