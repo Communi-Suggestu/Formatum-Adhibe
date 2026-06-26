@@ -241,11 +241,16 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
     private static boolean shouldUseAppliedBraceIndent(String trimmed) {
         return trimmed.startsWith("new ")
                 || trimmed.startsWith(".")
+                || isTryBlockOpener(trimmed)
                 || trimmed.startsWith("} else")
                 || trimmed.startsWith("} catch")
                 || trimmed.startsWith("} finally")
                 || trimmed.contains("->")
                 || isDeclarationLikeBlockOpener(trimmed);
+    }
+
+    private static boolean isTryBlockOpener(String trimmed) {
+        return trimmed.startsWith("try {") || trimmed.startsWith("try{");
     }
 
     private static boolean isDeclarationLikeBlockOpener(String trimmed) {

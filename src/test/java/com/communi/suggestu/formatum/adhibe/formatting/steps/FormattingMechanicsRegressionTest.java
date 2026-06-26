@@ -82,6 +82,45 @@ class FormattingMechanicsRegressionTest {
     }
 
     @Test
+    void indentsTryCatchInsideWrappedLambdaBody() {
+        CheckstyleIndentationStep step = indentationStep();
+
+        String source = "class Example {\n"
+                + "\tvoid run(MultiStateBlockEntity multiStateBlockEntity, List<IStateEntryInfo> before) {\n"
+                + "\t\ttry (IBatchMutation batch = multiStateBlockEntity.batch()) {\n"
+                + "\t\t\tmultiStateBlockEntity.initializeWith(BlockInformation.AIR);\n"
+                + "\t\t\tbefore.stream().forEach(\n"
+                + "\t\t\t\t\tiStateEntryInfo -> {\n"
+                + "\t\t\t\t\t\ttry {\n"
+                + "\t\t\t\tmultiStateBlockEntity.setInAreaTarget(iStateEntryInfo.getBlockInformation(), iStateEntryInfo.getStartPoint());\n"
+                + "\t\t\t\t} catch (SpaceOccupiedException e) {\n"
+                + "\t\t\t\t//Noop\n"
+                + "\t\t\t\t}\n"
+                + "\t\t\t\t\t});\n"
+                + "\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tvoid run(MultiStateBlockEntity multiStateBlockEntity, List<IStateEntryInfo> before) {\n"
+                + "\t\ttry (IBatchMutation batch = multiStateBlockEntity.batch()) {\n"
+                + "\t\t\tmultiStateBlockEntity.initializeWith(BlockInformation.AIR);\n"
+                + "\t\t\tbefore.stream().forEach(\n"
+                + "\t\t\t\t\tiStateEntryInfo -> {\n"
+                + "\t\t\t\t\t\ttry {\n"
+                + "\t\t\t\t\t\t\tmultiStateBlockEntity.setInAreaTarget(iStateEntryInfo.getBlockInformation(), iStateEntryInfo.getStartPoint());\n"
+                + "\t\t\t\t\t\t} catch (SpaceOccupiedException e) {\n"
+                + "\t\t\t\t\t\t\t//Noop\n"
+                + "\t\t\t\t\t\t}\n"
+                + "\t\t\t\t\t});\n"
+                + "\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void addsWhitespaceAfterTryKeyword() {
         CheckstyleWhitespaceAfterStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAfterStep.class, STEP_NAME);
         step.getTokens().set(java.util.List.of("LITERAL_TRY"));
