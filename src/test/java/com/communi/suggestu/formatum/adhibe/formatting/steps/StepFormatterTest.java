@@ -516,6 +516,22 @@ class StepFormatterTest {
     }
 
     @Test
+    void whitespaceAroundPreservesIndentationForWrappedTernaryQuestionLine() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("QUESTION", "COLON"));
+
+        String source = "\t\treturn !playerEntity.isShiftKeyDown()\n"
+                + "\t\t\t\t?Vec3.atLowerCornerOf(blockRayTraceResult.getBlockPos())\n"
+                + "\t\t\t\t:blockRayTraceResult.getLocation();\n";
+
+        String expected = "\t\treturn !playerEntity.isShiftKeyDown()\n"
+                + "\t\t\t\t? Vec3.atLowerCornerOf(blockRayTraceResult.getBlockPos())\n"
+                + "\t\t\t\t: blockRayTraceResult.getLocation();\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void whitespaceAroundNormalizesRelationalOperatorsInLambdaContainedIfElseIf() {
         CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
         step.getTokens().set(java.util.List.of("GE", "LE", "LITERAL_IF", "LITERAL_ELSE"));
@@ -629,6 +645,20 @@ class StepFormatterTest {
                 + "int fromMask(final int value) {\n"
                 + "\treturn value >> 2;\n"
                 + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void whitespaceAroundDoesNotTreatGenericTypeClosersAsShiftOperators() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        step.getTokens().set(java.util.List.of("SL", "SR", "LT", "GT", "ASSIGN", "LITERAL_RETURN"));
+
+        String source = "\treturn RecordCodecBuilder.<Map.Entry<K, V>>create(instance -> instance);\n"
+                + "\treturn value>>2;\n";
+
+        String expected = "\treturn RecordCodecBuilder.<Map.Entry<K, V>>create(instance -> instance);\n"
+                + "\treturn value >> 2;\n";
 
         assertEquals(expected, step.formatter().format("Example.java", source));
     }

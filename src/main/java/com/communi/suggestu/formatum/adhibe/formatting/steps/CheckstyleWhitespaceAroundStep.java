@@ -64,10 +64,129 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
     }
 
     private static String normalizeShiftOperators(String expression) {
-        String result = expression;
-        result = result.replaceAll("\\s*<<(?!=)\\s*", " << ");
-        result = result.replaceAll("(?<!<)\\s*>>(?![>=])\\s*", " >> ");
-        return result;
+        StringBuilder normalized = new StringBuilder(expression.length());
+        int genericDepth = 0;
+        boolean inString = false;
+        boolean inChar = false;
+
+        for (int i = 0; i < expression.length(); i++) {
+            char c = expression.charAt(i);
+
+            if (c == '"' && !inChar && !isEscaped(expression, i)) {
+                inString = !inString;
+                normalized.append(c);
+                continue;
+            }
+            if (c == '\'' && !inString && !isEscaped(expression, i)) {
+                inChar = !inChar;
+                normalized.append(c);
+                continue;
+            }
+            if (inString || inChar) {
+                normalized.append(c);
+                continue;
+            }
+
+            if (c == '<' && isLikelyGenericOpen(expression, i, genericDepth)) {
+                genericDepth++;
+                normalized.append(c);
+                continue;
+            }
+
+            if (c == '>' && genericDepth > 0) {
+                genericDepth--;
+                normalized.append(c);
+                continue;
+            }
+
+            if (genericDepth == 0 && c == '<' && i + 1 < expression.length() && expression.charAt(i + 1) == '<'
+                    && (i + 2 >= expression.length() || expression.charAt(i + 2) != '=')) {
+                trimTrailingWhitespace(normalized);
+                normalized.append(" << ");
+                i = skipFollowingWhitespace(expression, i + 2) - 1;
+                continue;
+            }
+
+            if (genericDepth == 0 && c == '>' && i + 1 < expression.length() && expression.charAt(i + 1) == '>'
+                    && (i + 2 >= expression.length() || (expression.charAt(i + 2) != '=' && expression.charAt(i + 2) != '>'))) {
+                trimTrailingWhitespace(normalized);
+                normalized.append(" >> ");
+                i = skipFollowingWhitespace(expression, i + 2) - 1;
+                continue;
+            }
+
+            normalized.append(c);
+        }
+
+        return normalized.toString();
+    }
+
+    private static boolean isLikelyGenericOpen(String expression, int index, int genericDepth) {
+        if (index + 1 < expression.length() && expression.charAt(index + 1) == '<') {
+            return false;
+        }
+        if (genericDepth > 0) {
+            return true;
+        }
+
+        int previousIndex = previousNonWhitespaceIndex(expression, index - 1);
+        int nextIndex = nextNonWhitespaceIndex(expression, index + 1);
+        if (previousIndex < 0 || nextIndex < 0) {
+            return false;
+        }
+
+        char previous = expression.charAt(previousIndex);
+        if (!(Character.isJavaIdentifierPart(previous)
+                || previous == '.'
+                || previous == '>'
+                || previous == '?'
+                || previous == ']'
+                || previous == ')')) {
+            return false;
+        }
+
+        char next = expression.charAt(nextIndex);
+        return next == '?' || Character.isUpperCase(next);
+    }
+
+    private static int previousNonWhitespaceIndex(String text, int start) {
+        int i = start;
+        while (i >= 0 && Character.isWhitespace(text.charAt(i))) {
+            i--;
+        }
+        return i;
+    }
+
+    private static int nextNonWhitespaceIndex(String text, int start) {
+        int i = start;
+        while (i < text.length() && Character.isWhitespace(text.charAt(i))) {
+            i++;
+        }
+        return i;
+    }
+
+    private static boolean isEscaped(String text, int index) {
+        int backslashCount = 0;
+        int i = index - 1;
+        while (i >= 0 && text.charAt(i) == '\\') {
+            backslashCount++;
+            i--;
+        }
+        return (backslashCount % 2) == 1;
+    }
+
+    private static void trimTrailingWhitespace(StringBuilder builder) {
+        while (builder.length() > 0 && Character.isWhitespace(builder.charAt(builder.length() - 1))) {
+            builder.deleteCharAt(builder.length() - 1);
+        }
+    }
+
+    private static int skipFollowingWhitespace(String text, int start) {
+        int i = start;
+        while (i < text.length() && Character.isWhitespace(text.charAt(i))) {
+            i++;
+        }
+        return i;
     }
 
     private static int findAssignmentOperatorIndex(String line) {
@@ -103,12 +222,27 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
     private static String normalizeTernaryOperators(String text) {
         String[] lines = text.split("\\n", -1);
         for (int i = 0; i < lines.length; i++) {
-            if (!lines[i].contains("?")) {
+            String trimmed = lines[i].trim();
+            if (!lines[i].contains("?") && !trimmed.startsWith(":")) {
                 continue;
             }
 
-            lines[i] = lines[i].replaceAll("\\s*\\?\\s*", " ? ");
-            lines[i] = lines[i].replaceAll("(?<!:)\\s*:(?!:)\\s*", " : ");
+            int contentStart = 0;
+            while (contentStart < lines[i].length() && Character.isWhitespace(lines[i].charAt(contentStart))) {
+                contentStart++;
+            }
+
+            String indentation = lines[i].substring(0, contentStart);
+            String content = lines[i].substring(contentStart);
+            content = content.replaceAll("\\s*\\?\\s*", " ? ");
+            content = content.replaceAll("(?<!:)\\s*:(?!:)\\s*", " : ");
+            if (content.startsWith(" ? ")) {
+                content = "?" + content.substring(2);
+            }
+            if (content.startsWith(" : ")) {
+                content = ":" + content.substring(2);
+            }
+            lines[i] = indentation + content;
         }
         return String.join("\n", lines);
     }
