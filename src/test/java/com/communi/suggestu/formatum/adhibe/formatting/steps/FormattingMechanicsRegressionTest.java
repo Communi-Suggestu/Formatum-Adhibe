@@ -151,5 +151,63 @@ class FormattingMechanicsRegressionTest {
         step.getLineWrappingIndentation().set(8);
         return step;
     }
+
+    @Test
+    void preservesWhitespaceAroundComparisonOperatorsInIfHeaders() {
+        CheckstyleWhitespaceAroundStep whitespaceStep = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        whitespaceStep.getTokens().set(java.util.List.of("ASSIGN", "LT", "GT", "LE", "GE"));
+
+        String source = "class Example {\n"
+                + "\tvoid process() {\n"
+                + "\t\tif (index <this.bitSlots.size()) {\n"
+                + "\t\t\tcall();\n"
+                + "\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tvoid process() {\n"
+                + "\t\tif (index < this.bitSlots.size()) {\n"
+                + "\t\t\tcall();\n"
+                + "\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, whitespaceStep.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void alignsClosingBraceInWrappedElseIfBlock() {
+        CheckstyleIndentationStep step = indentationStep();
+
+        String source = "class Example {\n"
+                + "\tvoid process(int index) {\n"
+                + "\t\tif (index < this.bitSlots.size()) {\n"
+                + "\t\t\tcall();\n"
+                + "\t\t}\n"
+                + "\n"
+                + "\t\telse if (\n"
+                + "\t\t\t\t!this.moveItemStackTo(slotStack, 0, this.bitSlots.size(), false)) {\n"
+                + "\t\t\treturn;\n"
+                + "\t\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tvoid process(int index) {\n"
+                + "\t\tif (index < this.bitSlots.size()) {\n"
+                + "\t\t\tcall();\n"
+                + "\t\t}\n"
+                + "\n"
+                + "\t\telse if (\n"
+                + "\t\t\t\t!this.moveItemStackTo(slotStack, 0, this.bitSlots.size(), false)) {\n"
+                + "\t\t\treturn;\n"
+                + "\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
 }
 

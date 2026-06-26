@@ -206,18 +206,21 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
         return -1;
     }
 
-    private static String normalizeRelationalOperators(String text) {
-        String result = text;
-        result = result.replaceAll("\\s*<=\\s*", " <= ");
-        result = result.replaceAll("\\s*>=\\s*", " >= ");
-        // Keep this narrow to avoid rewriting generic type arguments.
-        result = result.replaceAll("([\\w)\\]])\\s*<\\s*(-?\\d)", "$1 < $2");
-        result = result.replaceAll("([\\w)\\]])\\s*>\\s*(-?\\d)", "$1 > $2");
-        // Handle method/array expression comparisons against identifiers in method bodies.
-        result = result.replaceAll("([)\\]])\\s*<\\s*([A-Za-z_$][A-Za-z0-9_$]*)", "$1 < $2");
-        result = result.replaceAll("([)\\]])\\s*>\\s*([A-Za-z_$][A-Za-z0-9_$]*)", "$1 > $2");
-        return result;
-    }
+     private static String normalizeRelationalOperators(String text) {
+         String result = text;
+         result = result.replaceAll("\\s*<=\\s*", " <= ");
+         result = result.replaceAll("\\s*>=\\s*", " >= ");
+         // Keep this narrow to avoid rewriting generic type arguments.
+         result = result.replaceAll("([\\w)\\]])\\s*<\\s*(-?\\d)", "$1 < $2");
+         result = result.replaceAll("([\\w)\\]])\\s*>\\s*(-?\\d)", "$1 > $2");
+         // Handle method/array expression comparisons against identifiers in method bodies.
+         result = result.replaceAll("([)\\]])\\s*<\\s*([A-Za-z_$][A-Za-z0-9_$]*)", "$1 < $2");
+         result = result.replaceAll("([)\\]])\\s*>\\s*([A-Za-z_$][A-Za-z0-9_$]*)", "$1 > $2");
+         // Handle member-access comparisons like `index <this.bitSlots.size()`.
+         result = result.replaceAll("([A-Za-z_$][A-Za-z0-9_$]*)\\s*<\\s*(this\\.[A-Za-z_$][A-Za-z0-9_$.]*)", "$1 < $2");
+         result = result.replaceAll("([A-Za-z_$][A-Za-z0-9_$]*)\\s*>\\s*(this\\.[A-Za-z_$][A-Za-z0-9_$.]*)", "$1 > $2");
+         return result;
+     }
 
     private static String normalizeTernaryOperators(String text) {
         String[] lines = text.split("\\n", -1);

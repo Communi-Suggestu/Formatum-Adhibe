@@ -258,6 +258,12 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             return false;
         }
 
+        // Wrapped boolean condition continuations like `!predicate(...)) {` should close at
+        // structural indent of the owning if/else-if, not at continuation indent.
+        if (trimmed.matches("^[!~].*\\)\\s*\\{$") || trimmed.matches("^(this|super)\\..*\\)\\s*\\{$")) {
+            return false;
+        }
+
         // Resource declarations in try-with-resources are wrapped continuation lines that
         // should close at structural block indent, not at continuation indent.
         return !trimmed.matches(".*(?<![<>=!+\\-*/%&|^])=(?!=).*\\)\\s*\\{$");
