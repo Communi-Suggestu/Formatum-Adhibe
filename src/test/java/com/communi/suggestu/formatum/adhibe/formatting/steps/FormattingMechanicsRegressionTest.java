@@ -279,5 +279,164 @@ class FormattingMechanicsRegressionTest {
         assertEquals(expected, formatted);
     }
 
+    @Test
+    void formatsWrappedAssignmentsAndFluentContinuationInLambdaBody() {
+        CheckstyleWhitespaceAroundStep whitespace = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        whitespace.getTokens().set(java.util.List.of("ASSIGN", "QUESTION", "COLON"));
+        CheckstyleIndentationStep indentation = indentationStep();
+
+        String source = "class Example {\n"
+                + "\tvoid build() {\n"
+                + "\t\tgeneratedQuad -> {\n"
+                + "\t\t\tfinal List<BlockTintSource> tintSources = \n"
+                + "\t\t\tinformation.isFluid()\n"
+                + "\t\t\t\t\t? getFluidTintSources()\n"
+                + "\t\t\t\t\t: Minecraft.getInstance().getBlockColors().getTintSources(information.blockState());\n"
+                + "\t\t\tquadsByTints.computeIfAbsent(tints, (_) -> new ArrayList<>())\n"
+                + "\t\t\t.add(generatedQuad.quad());\n"
+                + "\t\t};\n"
+                + "\n"
+                + "\t\tfinal List<BitBlockModelPart> parts =\n"
+                + "\t\tquadsByTints.entrySet().stream()\n"
+                + "\t\t\t.map(c -> new BitBlockModelPart(c.getValue(), c.getKey()))\n"
+                + "\t\t\t.toList();\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tvoid build() {\n"
+                + "\t\tgeneratedQuad -> {\n"
+                + "\t\t\tfinal List<BlockTintSource> tintSources =\n"
+                + "\t\t\t\tinformation.isFluid()\n"
+                + "\t\t\t\t\t? getFluidTintSources()\n"
+                + "\t\t\t\t\t: Minecraft.getInstance().getBlockColors().getTintSources(information.blockState());\n"
+                + "\t\t\tquadsByTints.computeIfAbsent(tints, (_) -> new ArrayList<>())\n"
+                + "\t\t\t\t\t.add(generatedQuad.quad());\n"
+                + "\t\t};\n"
+                + "\n"
+                + "\t\tfinal List<BitBlockModelPart> parts =\n"
+                + "\t\t\tquadsByTints.entrySet().stream()\n"
+                + "\t\t\t\t.map(c -> new BitBlockModelPart(c.getValue(), c.getKey()))\n"
+                + "\t\t\t\t.toList();\n"
+                + "\t}\n"
+                + "}\n";
+
+        String afterWhitespace = whitespace.formatter().format("Example.java", source);
+        String formatted = indentation.formatter().format("Example.java", afterWhitespace);
+        assertEquals(expected, formatted);
+    }
+
+    @Test
+    void runSimulatedMethodWithComplexIndentations() {
+        CheckstyleWhitespaceAroundStep whitespace = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        whitespace.getTokens().set(java.util.List.of("ASSIGN", "QUESTION", "COLON"));
+        CheckstyleIndentationStep indentation = indentationStep();
+
+        String source = "\tpublic BitBlockModelInformation build(final BlockAndTintGetter surroundings) {\n"
+            + "\t\tfinal Map<IntList, List<BakedQuad>> quadsByTints = new HashMap<>();\n"
+            + "\n"
+            + "\t\tfinal SingleBlockBlockAndTintGetter blockAndTintGetter = new SingleBlockBlockAndTintGetter.Builder()  \n"
+            + "\t\t\t\t.withBlockState(information().blockState())\n"
+            + "\t\t\t\t.withBlockEntity(information()::newBlockEntityAtZero)\n"
+            + "\t\t\t\t.withSource(surroundings)\n"
+            + "\t\t\t\t.createSingleBlockBlockAndTintGetter();\n"
+            + "\n"
+            + "\t\tfor (final Direction myFace : Direction.values()) {\n"
+            + "\t\t\tQuadGenerationUtils.generateQuads(\n"
+            + "\t\t\t\t\tinformation(),\n"
+            + "\t\t\t\t\tmyFace,\n"
+            + "\t\t\t\t\tblockAndTintGetter,\n"
+            + "\t\t\t\t\tBlockPos.ZERO,\n"
+            + "\t\t\t\t\tmyFace.getAxisDirection() == Direction.AxisDirection.POSITIVE ? TO : FROM,\n"
+            + "\t\t\t\t\tmyFace.getAxisDirection() == Direction.AxisDirection.NEGATIVE ? TO : FROM,\n"
+            + "\t\t\t\t\t(layer, quad) -> {\n"
+            + "\t\t\t\t\t\tif (layer.material().tintIndex() != -1) {\n"
+            + "\t\t\t\t\t\t\tquad.tintIndex(0);\n"
+            + "\t\t\t\t\t\t}\n"
+            + "\t\t\t\t\t},\n"
+            + "\n"
+            + "\n"
+            + "\t\t\t\t\tgeneratedQuad -> {\n"
+            + "\t\t\t\t\t\tfinal List<BlockTintSource> tintSources =\n"
+            + "\t\t\t\t\tinformation.isFluid()\n"
+            + "\t\t\t\t\t\t\t\t? getFluidTintSources()\n"
+            + "\t\t\t\t\t\t\t\t: Minecraft.getInstance().getBlockColors().getTintSources(information.blockState());\n"
+            + "\t\t\t\t\t\tfinal IntList tints = new IntArrayList(tintSources.size());\n"
+            + "\t\t\t\t\t\ttintSources.forEach(source -> {\n"
+            + "\t\t\t\t\t\t\ttints.add(\n"
+            + "\t\t\t\t\t\t\t\t\tsource.colorInWorld(information.blockState(),\n"
+            + "\t\t\t\t\t\t\t\t\t\t\tblockAndTintGetter,\n"
+            + "\t\t\t\t\t\t\t\t\t\t\tBlockPos.ZERO)\n"
+            + "\t\t\t\t\t\t\t);\n"
+            + "\t\t\t\t\t\t});\n"
+            + "\n"
+            + "\t\t\t\t\t\tquadsByTints.computeIfAbsent(tints, (_) -> new ArrayList<>())\n"
+            + "\t\t\t\t\t\t.add(generatedQuad.quad());\n"
+            + "\t\t\t\t\t});\n"
+            + "\t\t}\n"
+            + "\n"
+            + "\t\tfinal List<BitBlockModelPart> parts =\n"
+            + "\t\t\tquadsByTints.entrySet().stream()\n"
+            + "\t\t\t\t.map(c -> new BitBlockModelPart(c.getValue(), c.getKey()))\n"
+            + "\t\t\t\t.toList();\n"
+            + "\n"
+            + "\t\treturn new BitBlockModelInformation(parts, true, isLarge());\n"
+            + "\t}";
+
+        String expected = "public BitBlockModelInformation build(final BlockAndTintGetter surroundings) {\n"
+            + "\tfinal Map<IntList, List<BakedQuad>> quadsByTints = new HashMap<>();\n"
+            + "\n"
+            + "\tfinal SingleBlockBlockAndTintGetter blockAndTintGetter = new SingleBlockBlockAndTintGetter.Builder()\n"
+            + "\t\t\t.withBlockState(information().blockState())\n"
+            + "\t\t\t.withBlockEntity(information()::newBlockEntityAtZero)\n"
+            + "\t\t\t.withSource(surroundings)\n"
+            + "\t\t\t.createSingleBlockBlockAndTintGetter();\n"
+            + "\n"
+            + "\tfor (final Direction myFace : Direction.values()) {\n"
+            + "\t\tQuadGenerationUtils.generateQuads(\n"
+            + "\t\t\t\tinformation(),\n"
+            + "\t\t\t\tmyFace,\n"
+            + "\t\t\t\tblockAndTintGetter,\n"
+            + "\t\t\t\tBlockPos.ZERO,\n"
+            + "\t\t\t\tmyFace.getAxisDirection() == Direction.AxisDirection.POSITIVE ? TO : FROM,\n"
+            + "\t\t\t\tmyFace.getAxisDirection() == Direction.AxisDirection.NEGATIVE ? TO : FROM,\n"
+            + "\t\t\t\t(layer, quad) -> {\n"
+            + "\t\t\t\t\tif (layer.material().tintIndex() != -1) {\n"
+            + "\t\t\t\t\t\tquad.tintIndex(0);\n"
+            + "\t\t\t\t\t}\n"
+            + "\t\t\t\t},\n"
+            + "\n"
+            + "\n"
+            + "\t\t\t\tgeneratedQuad -> {\n"
+            + "\t\t\t\t\tfinal List<BlockTintSource> tintSources =\n"
+            + "\t\t\t\t\t\t\tinformation.isFluid()\n"
+            + "\t\t\t\t\t\t\t\t\t\t? getFluidTintSources()\n"
+            + "\t\t\t\t\t\t\t\t\t\t: Minecraft.getInstance().getBlockColors().getTintSources(information.blockState());\n"
+            + "\t\t\t\t\tfinal IntList tints = new IntArrayList(tintSources.size());\n"
+            + "\t\t\t\t\ttintSources.forEach(source -> {\n"
+            + "\t\t\t\t\t\ttints.add(\n"
+            + "\t\t\t\t\t\t\t\tsource.colorInWorld(information.blockState(),\n"
+            + "\t\t\t\t\t\t\t\t\t\tblockAndTintGetter,\n"
+            + "\t\t\t\t\t\t\t\t\t\tBlockPos.ZERO)\n"
+            + "\t\t\t\t\t\t);\n"
+            + "\t\t\t\t\t});\n"
+            + "\n"
+            + "\t\t\t\t\tquadsByTints.computeIfAbsent(tints, (_) -> new ArrayList<>())\n"
+            + "\t\t\t\t\t\t.add(generatedQuad.quad());\n"
+            + "\t\t\t\t});\n"
+            + "\t}\n"
+            + "\n"
+            + "\tfinal List<BitBlockModelPart> parts =\n"
+            + "\t\tquadsByTints.entrySet().stream()\n"
+            + "\t\t\t.map(c -> new BitBlockModelPart(c.getValue(), c.getKey()))\n"
+            + "\t\t\t.toList();\n"
+            + "\n"
+            + "\treturn new BitBlockModelInformation(parts, true, isLarge());\n"
+            + "}";
+
+        String afterWhitespace = whitespace.formatter().format("Example.java", source);
+        String formatted = indentation.formatter().format("Example.java", afterWhitespace);
+        assertEquals(expected, formatted);
+    }
 }
 

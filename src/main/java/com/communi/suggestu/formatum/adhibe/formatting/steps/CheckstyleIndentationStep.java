@@ -11,9 +11,11 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
-public abstract class CheckstyleIndentationStep extends FormattingStep {
+public abstract class CheckstyleIndentationStep extends FormattingStep
+{
     @Inject
-    public CheckstyleIndentationStep() {
+    public CheckstyleIndentationStep()
+    {
     }
 
     @Input
@@ -32,11 +34,13 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
     public abstract Property<Integer> getLineWrappingIndentation();
 
     @Override
-    public FileFormatter formatter() {
+    public FileFormatter formatter()
+    {
         return (fileName, text) -> apply(TextFormattingUtils.normalizeNewlines(text));
     }
 
-    private String apply(String text) {
+    private String apply(String text)
+    {
         List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
         int blockIndent = 0;
         Deque<ParenContext> parenContexts = new ArrayDeque<>();
@@ -45,20 +49,39 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         int caseOffset = Math.max(0, getCaseIndent().getOrElse(0) / Math.max(1, getBasicOffset().getOrElse(4)));
         int inheritanceContinuationIndent = -1;
         boolean previousLineEndedWithAssignment = false;
+        boolean assignmentTernaryContinuation = false;
+        boolean previousLineWasAssignmentContinuation = false;
+        boolean assignmentChainContinuation = false;
 
-        for (int i = 0; i < lines.size(); i++) {
+        for (int i = 0; i < lines.size(); i++)
+        {
             String line = lines.get(i);
             String trimmed = line.trim();
-            if (trimmed.isEmpty()) {
+            if (trimmed.isEmpty())
+            {
                 continue;
             }
 
             int effectiveIndent;
             boolean assignmentContinuation = previousLineEndedWithAssignment && !startsWithClosingBrace(trimmed);
-            if (inheritanceContinuationIndent >= 0 && !startsWithClosingBrace(trimmed)) {
+            if (inheritanceContinuationIndent >= 0 && !startsWithClosingBrace(trimmed))
+            {
                 effectiveIndent = inheritanceContinuationIndent;
-            } else {
-                effectiveIndent = determineIndent(trimmed, blockIndent, parenContexts, braceIndentStack, continuationTabs, caseOffset, assignmentContinuation);
+            }
+            else
+            {
+                effectiveIndent = determineIndent(
+                    trimmed,
+                    blockIndent,
+                    parenContexts,
+                    braceIndentStack,
+                    continuationTabs,
+                    caseOffset,
+                    assignmentContinuation,
+                    assignmentTernaryContinuation,
+                    previousLineWasAssignmentContinuation,
+                    assignmentChainContinuation
+                );
             }
             lines.set(i, "\t".repeat(Math.max(0, effectiveIndent)) + trimmed);
             boolean insideInheritanceContinuation = inheritanceContinuationIndent >= 0;
@@ -66,154 +89,229 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
             blockIndent = updateBlockIndent(blockIndent, trimmed);
             updateParenContexts(parenContexts, trimmed, effectiveIndent);
 
-            if (inheritanceContinuationIndent >= 0 && !trimmed.endsWith(",")) {
+            if (inheritanceContinuationIndent >= 0 && !trimmed.endsWith(","))
+            {
                 inheritanceContinuationIndent = -1;
             }
-            if (inheritanceContinuationIndent < 0 && startsWrappedInheritanceList(trimmed)) {
+            if (inheritanceContinuationIndent < 0 && startsWrappedInheritanceList(trimmed))
+            {
                 inheritanceContinuationIndent = effectiveIndent + continuationTabs;
             }
 
             previousLineEndedWithAssignment = endsWithStandaloneAssignment(trimmed);
+            previousLineWasAssignmentContinuation = assignmentContinuation;
+            if (assignmentContinuation)
+            {
+                assignmentChainContinuation = true;
+            }
+            if (trimmed.endsWith(";"))
+            {
+                assignmentChainContinuation = false;
+            }
+            if (assignmentContinuation)
+            {
+                assignmentTernaryContinuation = true;
+            }
+            if (startsWithTernaryContinuation(trimmed) && trimmed.endsWith(";"))
+            {
+                assignmentTernaryContinuation = false;
+            }
+            if (trimmed.endsWith(";") && !startsWithTernaryContinuation(trimmed) && !assignmentContinuation)
+            {
+                assignmentTernaryContinuation = false;
+            }
         }
 
         return String.join("\n", lines);
     }
 
     private static int determineIndent(
-            String trimmed,
-            int blockIndent,
-            Deque<ParenContext> parenContexts,
-            Deque<Integer> braceIndentStack,
-            int continuationTabs,
-            int caseOffset,
-            boolean assignmentContinuation
-    ) {
-        if (startsWithClosingBrace(trimmed)) {
-            if (!braceIndentStack.isEmpty()) {
+        String trimmed,
+        int blockIndent,
+        Deque<ParenContext> parenContexts,
+        Deque<Integer> braceIndentStack,
+        int continuationTabs,
+        int caseOffset,
+        boolean assignmentContinuation,
+        boolean assignmentTernaryContinuation,
+        boolean previousLineWasAssignmentContinuation,
+        boolean assignmentChainContinuation
+    )
+    {
+        if (startsWithClosingBrace(trimmed))
+        {
+            if (!braceIndentStack.isEmpty())
+            {
                 return braceIndentStack.peek();
             }
             return Math.max(0, blockIndent - 1);
         }
 
-        if (trimmed.startsWith("case ") || trimmed.startsWith("default:")) {
+        if (trimmed.startsWith("case ") || trimmed.startsWith("default:"))
+        {
             return Math.max(0, blockIndent - 1 + caseOffset);
         }
 
-        if (startsWithClosingParenLine(trimmed) && !parenContexts.isEmpty()) {
+        if (startsWithClosingParenLine(trimmed) && !parenContexts.isEmpty())
+        {
             return parenContexts.peek().anchorIndentTabs();
         }
 
-        if (startsWithTernaryContinuation(trimmed)) {
-            if (isInsideWrappedBraceBody(trimmed, parenContexts, braceIndentStack)) {
+        if (startsWithTernaryContinuation(trimmed))
+        {
+            if (isInsideWrappedBraceBody(trimmed, parenContexts, braceIndentStack))
+            {
+                if (assignmentTernaryContinuation)
+                {
+                    return Math.max(
+                        braceIndentStack.peek() + 1 + (continuationTabs * 2) + 1,
+                        blockIndent + (continuationTabs * 2) + 1
+                    );
+                }
                 return braceIndentStack.peek() + 1 + continuationTabs;
             }
-            if (!parenContexts.isEmpty()) {
+            if (!parenContexts.isEmpty())
+            {
                 return Math.max(blockIndent + continuationTabs, parenContexts.peek().anchorIndentTabs() + continuationTabs);
             }
             return Math.max(blockIndent + 1, blockIndent + continuationTabs);
         }
 
-        if (assignmentContinuation) {
-            return Math.max(blockIndent + 1, blockIndent + Math.max(1, continuationTabs - 1));
+        if (assignmentContinuation)
+        {
+            if (isInsideWrappedBraceBody(trimmed, parenContexts, braceIndentStack))
+            {
+                return braceIndentStack.peek() + 1 + continuationTabs;
+            }
+            return blockIndent + 1;
         }
 
-        if (isInsideWrappedBraceBody(trimmed, parenContexts, braceIndentStack)) {
+        if (isInsideWrappedBraceBody(trimmed, parenContexts, braceIndentStack))
+        {
+            if (trimmed.startsWith(".")) {
+                return braceIndentStack.peek() + 2;
+            }
+
             return braceIndentStack.peek() + 1;
         }
 
 
-        if (!parenContexts.isEmpty()) {
-            if (trimmed.startsWith("new ")) {
+        if (!parenContexts.isEmpty())
+        {
+            if (trimmed.startsWith("."))
+            {
+                return blockIndent + 2;
+            }
+            if (trimmed.startsWith("new "))
+            {
                 return Math.max(blockIndent, parenContexts.peek().anchorIndentTabs() + Math.max(1, continuationTabs - 1));
             }
             int wrappedIndent = Math.max(blockIndent, parenContexts.peek().anchorIndentTabs() + continuationTabs);
-            if (blockIndent >= parenContexts.peek().anchorIndentTabs() + continuationTabs) {
+            if (blockIndent >= parenContexts.peek().anchorIndentTabs() + continuationTabs)
+            {
                 return blockIndent + 1;
             }
             return wrappedIndent;
         }
 
-        if (trimmed.startsWith(".")) {
+        if (trimmed.startsWith("."))
+        {
             return Math.max(blockIndent + 1, blockIndent + continuationTabs);
         }
 
         return blockIndent;
     }
 
-    private static boolean startsWithClosingBrace(String trimmed) {
+    private static boolean startsWithClosingBrace(String trimmed)
+    {
         return trimmed.startsWith("}");
     }
 
     private static boolean isInsideWrappedBraceBody(
-            String trimmed,
-            Deque<ParenContext> parenContexts,
-            Deque<Integer> braceIndentStack
-    ) {
+        String trimmed,
+        Deque<ParenContext> parenContexts,
+        Deque<Integer> braceIndentStack
+    )
+    {
         return !parenContexts.isEmpty()
-                && !braceIndentStack.isEmpty()
-                && braceIndentStack.peek() >= parenContexts.peek().anchorIndentTabs();
+            && !braceIndentStack.isEmpty()
+            && braceIndentStack.peek() >= parenContexts.peek().anchorIndentTabs();
     }
 
-
-    private static boolean startsWithTernaryContinuation(String trimmed) {
+    private static boolean startsWithTernaryContinuation(String trimmed)
+    {
         return trimmed.startsWith("?") || trimmed.startsWith(":");
     }
 
-    private static boolean startsWrappedInheritanceList(String trimmed) {
+    private static boolean startsWrappedInheritanceList(String trimmed)
+    {
         return (trimmed.contains(" extends ") || trimmed.contains(" implements ")) && trimmed.endsWith(",");
     }
 
-    private static boolean endsWithStandaloneAssignment(String trimmed) {
-        if (!trimmed.endsWith("=")) {
+    private static boolean endsWithStandaloneAssignment(String trimmed)
+    {
+        if (!trimmed.endsWith("="))
+        {
             return false;
         }
 
         int index = trimmed.length() - 1;
         char previous = index > 0 ? trimmed.charAt(index - 1) : '\0';
         return previous != '='
-                && previous != '!'
-                && previous != '<'
-                && previous != '>'
-                && previous != '+'
-                && previous != '-'
-                && previous != '*'
-                && previous != '/'
-                && previous != '%'
-                && previous != '&'
-                && previous != '|'
-                && previous != '^';
+            && previous != '!'
+            && previous != '<'
+            && previous != '>'
+            && previous != '+'
+            && previous != '-'
+            && previous != '*'
+            && previous != '/'
+            && previous != '%'
+            && previous != '&'
+            && previous != '|'
+            && previous != '^';
     }
 
-    private static int updateBlockIndent(int currentIndent, String line) {
+    private static int updateBlockIndent(int currentIndent, String line)
+    {
         int indent = currentIndent;
         boolean inString = false;
         boolean inChar = false;
-        for (int i = 0; i < line.length(); i++) {
+        for (int i = 0; i < line.length(); i++)
+        {
             char c = line.charAt(i);
             char next = i + 1 < line.length() ? line.charAt(i + 1) : '\0';
-            if (!inString && !inChar && c == '/' && next == '/') {
+            if (!inString && !inChar && c == '/' && next == '/')
+            {
                 break;
             }
-            if (!inChar && c == '"') {
+            if (!inChar && c == '"')
+            {
                 boolean escaped = i > 0 && line.charAt(i - 1) == '\\';
-                if (!escaped) {
+                if (!escaped)
+                {
                     inString = !inString;
                 }
                 continue;
             }
-            if (!inString && c == '\'') {
+            if (!inString && c == '\'')
+            {
                 boolean escaped = i > 0 && line.charAt(i - 1) == '\\';
-                if (!escaped) {
+                if (!escaped)
+                {
                     inChar = !inChar;
                 }
                 continue;
             }
-            if (inString || inChar) {
+            if (inString || inChar)
+            {
                 continue;
             }
-            if (c == '{') {
+            if (c == '{')
+            {
                 indent++;
-            } else if (c == '}') {
+            }
+            else if (c == '}')
+            {
                 indent = Math.max(0, indent - 1);
             }
         }
@@ -221,46 +319,59 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
     }
 
     private static void updateBraceIndentStack(
-            Deque<Integer> braceIndentStack,
-            String line,
-            int appliedIndentTabs,
-            int blockIndent,
-            Deque<ParenContext> parenContexts,
-            boolean insideInheritanceContinuation
-    ) {
+        Deque<Integer> braceIndentStack,
+        String line,
+        int appliedIndentTabs,
+        int blockIndent,
+        Deque<ParenContext> parenContexts,
+        boolean insideInheritanceContinuation
+    )
+    {
         boolean inString = false;
         boolean inChar = false;
         String trimmed = line.trim();
-        for (int i = 0; i < line.length(); i++) {
+        for (int i = 0; i < line.length(); i++)
+        {
             char c = line.charAt(i);
             char next = i + 1 < line.length() ? line.charAt(i + 1) : '\0';
-            if (!inString && !inChar && c == '/' && next == '/') {
+            if (!inString && !inChar && c == '/' && next == '/')
+            {
                 break;
             }
-            if (!inChar && c == '"') {
+            if (!inChar && c == '"')
+            {
                 boolean escaped = i > 0 && line.charAt(i - 1) == '\\';
-                if (!escaped) {
+                if (!escaped)
+                {
                     inString = !inString;
                 }
                 continue;
             }
-            if (!inString && c == '\'') {
+            if (!inString && c == '\'')
+            {
                 boolean escaped = i > 0 && line.charAt(i - 1) == '\\';
-                if (!escaped) {
+                if (!escaped)
+                {
                     inChar = !inChar;
                 }
                 continue;
             }
-            if (inString || inChar) {
+            if (inString || inChar)
+            {
                 continue;
             }
-            if (c == '}') {
-                if (!braceIndentStack.isEmpty()) {
+            if (c == '}')
+            {
+                if (!braceIndentStack.isEmpty())
+                {
                     braceIndentStack.pop();
                 }
-            } else if (c == '{') {
+            }
+            else if (c == '{')
+            {
                 int anchorIndent = appliedIndentTabs;
-                if (insideInheritanceContinuation || (!parenContexts.isEmpty() && !shouldUseAppliedBraceIndent(trimmed))) {
+                if (insideInheritanceContinuation || (!parenContexts.isEmpty() && !shouldUseAppliedBraceIndent(trimmed)))
+                {
                     anchorIndent = blockIndent;
                 }
                 braceIndentStack.push(anchorIndent);
@@ -268,34 +379,40 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         }
     }
 
-    private static boolean shouldUseAppliedBraceIndent(String trimmed) {
+    private static boolean shouldUseAppliedBraceIndent(String trimmed)
+    {
         return trimmed.startsWith("new ")
-                || (trimmed.startsWith(".") && !trimmed.matches(".*\\)\\)\\s*\\{$"))
-                || isTryBlockOpener(trimmed)
-                || trimmed.startsWith("} else")
-                || trimmed.startsWith("} catch")
-                || trimmed.startsWith("} finally")
-                || trimmed.contains("->")
-                || isDeclarationLikeBlockOpener(trimmed);
+            || (trimmed.startsWith(".") && !trimmed.matches(".*\\)\\)\\s*\\{$"))
+            || isTryBlockOpener(trimmed)
+            || trimmed.startsWith("} else")
+            || trimmed.startsWith("} catch")
+            || trimmed.startsWith("} finally")
+            || trimmed.contains("->")
+            || isDeclarationLikeBlockOpener(trimmed);
     }
 
-    private static boolean isTryBlockOpener(String trimmed) {
+    private static boolean isTryBlockOpener(String trimmed)
+    {
         return trimmed.startsWith("try {") || trimmed.startsWith("try{");
     }
 
-    private static boolean isDeclarationLikeBlockOpener(String trimmed) {
-        if (!trimmed.endsWith("{") || !trimmed.contains("(") || !trimmed.contains(")")) {
+    private static boolean isDeclarationLikeBlockOpener(String trimmed)
+    {
+        if (!trimmed.endsWith("{") || !trimmed.contains("(") || !trimmed.contains(")"))
+        {
             return false;
         }
 
         // Wrapped boolean condition continuations should close at structural indent of the
         // owning if/else-if, not at continuation indent.
         if (trimmed.matches("^[!~].*\\)\\s*\\{$")
-                || trimmed.matches("^(this|super)\\..*\\)\\s*\\{$")) {
+            || trimmed.matches("^(this|super)\\..*\\)\\s*\\{$"))
+        {
             return false;
         }
 
-        if (trimmed.startsWith(".") && trimmed.matches(".*\\)\\)\\s*\\{$")) {
+        if (trimmed.startsWith(".") && trimmed.matches(".*\\)\\)\\s*\\{$"))
+        {
             return false;
         }
 
@@ -304,52 +421,67 @@ public abstract class CheckstyleIndentationStep extends FormattingStep {
         return !trimmed.matches(".*(?<![<>=!+\\-*/%&|^])=(?!=).*\\)\\s*\\{$");
     }
 
-    private static void updateParenContexts(Deque<ParenContext> parenContexts, String line, int anchorIndentTabs) {
+    private static void updateParenContexts(Deque<ParenContext> parenContexts, String line, int anchorIndentTabs)
+    {
         boolean inString = false;
         boolean inChar = false;
-        for (int i = 0; i < line.length(); i++) {
+        for (int i = 0; i < line.length(); i++)
+        {
             char c = line.charAt(i);
             char next = i + 1 < line.length() ? line.charAt(i + 1) : '\0';
-            if (!inString && !inChar && c == '/' && next == '/') {
+            if (!inString && !inChar && c == '/' && next == '/')
+            {
                 break;
             }
-            if (c == '"' && !inChar) {
+            if (c == '"' && !inChar)
+            {
                 boolean escaped = i > 0 && line.charAt(i - 1) == '\\';
-                if (!escaped) {
+                if (!escaped)
+                {
                     inString = !inString;
                 }
                 continue;
             }
-            if (c == '\'' && !inString) {
+            if (c == '\'' && !inString)
+            {
                 boolean escaped = i > 0 && line.charAt(i - 1) == '\\';
-                if (!escaped) {
+                if (!escaped)
+                {
                     inChar = !inChar;
                 }
                 continue;
             }
-            if (inString || inChar) {
+            if (inString || inChar)
+            {
                 continue;
             }
-            if (c == '(' || c == '[') {
+            if (c == '(' || c == '[')
+            {
                 parenContexts.push(new ParenContext(anchorIndentTabs, c));
-            } else if ((c == ')' || c == ']') && !parenContexts.isEmpty()) {
+            }
+            else if ((c == ')' || c == ']') && !parenContexts.isEmpty())
+            {
                 parenContexts.pop();
             }
         }
     }
 
-    private static boolean startsWithClosingParenLine(String trimmed) {
-        if (trimmed.matches("^[)\\]].*$")) {
+    private static boolean startsWithClosingParenLine(String trimmed)
+    {
+        if (trimmed.matches("^[)\\]].*$"))
+        {
             return trimmed.matches("^[)\\]]+(\\s*[,;])?$")
-                    || trimmed.matches("^[)\\]]+\\s+implements\\b.*$")
-                    || trimmed.matches("^[)\\]]+\\s+throws\\b.*$")
-                    || trimmed.matches("^[)\\]]+\\s*\\{.*$");
+                || trimmed.matches("^[)\\]]+\\s+implements\\b.*$")
+                || trimmed.matches("^[)\\]]+\\s+throws\\b.*$")
+                || trimmed.matches("^[)\\]]+\\s*\\{.*$");
         }
 
         return trimmed.matches("^[)\\]]+[;,]*(\\s*\\{)?$");
     }
 
-    private record ParenContext(int anchorIndentTabs, char opener) {
+    private record ParenContext(
+        int anchorIndentTabs,
+        char opener)
+    {
     }
 }
-
