@@ -174,7 +174,19 @@ public abstract class CheckstyleIndentationStep extends FormattingStep
             {
                 return Math.max(blockIndent + continuationTabs, parenContexts.peek().anchorIndentTabs() + continuationTabs);
             }
-            return Math.max(blockIndent + 1, blockIndent + continuationTabs);
+            if (assignmentTernaryContinuation) {
+                return blockIndent + 3;
+            }
+            return blockIndent + 2;
+        }
+
+        if (assignmentChainContinuation) {
+            if (isInsideWrappedBraceBody(trimmed, parenContexts, braceIndentStack))
+            {
+                return braceIndentStack.peek() + 1 + continuationTabs;
+            }
+
+            return blockIndent + 3;
         }
 
         if (assignmentContinuation)
@@ -183,7 +195,8 @@ public abstract class CheckstyleIndentationStep extends FormattingStep
             {
                 return braceIndentStack.peek() + 1 + continuationTabs;
             }
-            return blockIndent + 1;
+
+            return blockIndent + 2;
         }
 
         if (isInsideWrappedBraceBody(trimmed, parenContexts, braceIndentStack))
