@@ -346,20 +346,24 @@ class FormatumAdhibeProjectPluginIntegrationTest
 
         Path sourceFile = projectDirectory.resolve("src/main/java/test/Example.java");
         Files.createDirectories(sourceFile.getParent());
-        Files.writeString(sourceFile, String.join("\n",
-                "package test;",
-                "",
-                "class Example {",
-                "\tvoid run() {",
-                "\t\tStringBuilder builder = new StringBuilder();",
-                "\t\tbuilder",
-                "\t\t\t.append(\" t\")",
-                "\t\t\t.append(\"s \")",
-                "\t\t\t.toString();",
-                "\t}",
-                "}",
-                ""
-        ));
+
+        final String expectedAndSource = """
+            package test;
+            
+            class Example {
+            	void run() {
+            		StringBuilder builder = new StringBuilder();
+            		builder
+                            .append(" t")
+                            .append("s ")
+                            .toString();
+            	}
+            }
+            """;
+
+        Files.writeString(sourceFile,
+            expectedAndSource
+        );
 
         var apply = GradleRunner.create()
                 .withProjectDir(projectDirectory.toFile())
@@ -370,14 +374,7 @@ class FormatumAdhibeProjectPluginIntegrationTest
         assertEquals(SUCCESS, Objects.requireNonNull(apply.task(":javaImmaculateApply")).getOutcome());
 
         String formatted = Files.readString(sourceFile);
-        assertTrue(formatted.contains("\n\t\t\t.append(\" t\")"), formatted);
-        assertTrue(formatted.contains("\n\t\t\t.append(\"s \")"), formatted);
-        assertTrue(formatted.contains("\n\t\t\t.toString();"), formatted);
-        assertTrue(formatted.contains("\n\t}\n}"), formatted);
-
-        // Guard against indentation-stripping regression.
-        assertFalse(formatted.contains("\n.pattern("), formatted);
-        assertFalse(formatted.contains("\n }\n }"), formatted);
+        assertEquals(expectedAndSource.replace("    ", "\t"), formatted);
     }
 
     @Test

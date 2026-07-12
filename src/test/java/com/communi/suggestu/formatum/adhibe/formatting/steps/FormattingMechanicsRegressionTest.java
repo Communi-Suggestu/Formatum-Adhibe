@@ -85,39 +85,43 @@ class FormattingMechanicsRegressionTest {
     void indentsTryCatchInsideWrappedLambdaBody() {
         CheckstyleIndentationStep step = indentationStep();
 
-        String source = "class Example {\n"
-                + "\tvoid run(MultiStateBlockEntity multiStateBlockEntity, List<IStateEntryInfo> before) {\n"
-                + "\t\ttry (IBatchMutation batch = multiStateBlockEntity.batch()) {\n"
-                + "\t\t\tmultiStateBlockEntity.initializeWith(BlockInformation.AIR);\n"
-                + "\t\t\tbefore.stream().forEach(\n"
-                + "\t\t\t\t\tiStateEntryInfo -> {\n"
-                + "\t\t\t\t\t\ttry {\n"
-                + "\t\t\t\tmultiStateBlockEntity.setInAreaTarget(iStateEntryInfo.getBlockInformation(), iStateEntryInfo.getStartPoint());\n"
-                + "\t\t\t\t} catch (SpaceOccupiedException e) {\n"
-                + "\t\t\t\t//Noop\n"
-                + "\t\t\t\t}\n"
-                + "\t\t\t\t\t});\n"
-                + "\t\t}\n"
-                + "\t}\n"
-                + "}\n";
+        String source = """
+            class Example {
+            	void run(MultiStateBlockEntity multiStateBlockEntity, List<IStateEntryInfo> before) {
+            		try (IBatchMutation batch = multiStateBlockEntity.batch()) {
+            			multiStateBlockEntity.initializeWith(BlockInformation.AIR);
+            			before.stream().forEach(
+            					iStateEntryInfo -> {
+            						try {
+            				multiStateBlockEntity.setInAreaTarget(iStateEntryInfo.getBlockInformation(), iStateEntryInfo.getStartPoint());
+            				} catch (SpaceOccupiedException e) {
+            				//Noop
+            				}
+            					});
+            		}
+            	}
+            }
+            """;
 
-        String expected = "class Example {\n"
-                + "\tvoid run(MultiStateBlockEntity multiStateBlockEntity, List<IStateEntryInfo> before) {\n"
-                + "\t\ttry (IBatchMutation batch = multiStateBlockEntity.batch()) {\n"
-                + "\t\t\tmultiStateBlockEntity.initializeWith(BlockInformation.AIR);\n"
-                + "\t\t\tbefore.stream().forEach(\n"
-                + "\t\t\t\t\tiStateEntryInfo -> {\n"
-                + "\t\t\t\t\t\ttry {\n"
-                + "\t\t\t\t\t\t\tmultiStateBlockEntity.setInAreaTarget(iStateEntryInfo.getBlockInformation(), iStateEntryInfo.getStartPoint());\n"
-                + "\t\t\t\t\t\t} catch (SpaceOccupiedException e) {\n"
-                + "\t\t\t\t\t\t\t//Noop\n"
-                + "\t\t\t\t\t\t}\n"
-                + "\t\t\t\t\t});\n"
-                + "\t\t}\n"
-                + "\t}\n"
-                + "}\n";
+        String expected = """
+            class Example {
+            	void run(MultiStateBlockEntity multiStateBlockEntity, List<IStateEntryInfo> before) {
+            		try (IBatchMutation batch = multiStateBlockEntity.batch()) {
+            			multiStateBlockEntity.initializeWith(BlockInformation.AIR);
+            			before.stream().forEach(
+                                        iStateEntryInfo -> {
+                                            try {
+                                                multiStateBlockEntity.setInAreaTarget(iStateEntryInfo.getBlockInformation(), iStateEntryInfo.getStartPoint());
+                                            } catch (SpaceOccupiedException e) {
+                                                //Noop
+                                            }
+                                        });
+            		}
+            	}
+            }
+            """;
 
-        assertEquals(expected, step.formatter().format("Example.java", source));
+        assertEquals(expected.replace("    ", "\t"), step.formatter().format("Example.java", source));
     }
 
     @Test
@@ -213,41 +217,43 @@ class FormattingMechanicsRegressionTest {
     void keepsBodyAndElseAlignedForWrappedIfConditionChains() {
         CheckstyleIndentationStep step = indentationStep();
 
-        String source = "class Example {\n"
-                + "\tvoid render() {\n"
-                + "\t\tif (potentialPlacingContext.isPresent()) {\n"
-                + "\t\t\tfinal IChiselingContext placingContext = potentialPlacingContext.get();\n"
-                + "\t\t\tif (placingContext.getMode() == chiselMode && potentialPlacingContext.get()\n"
-                + "\t\t\t\t\t.getMode()\n"
-                + "\t\t\t\t\t.isStillValid(playerEntity, potentialPlacingContext.get(), ChiselingOperation.PLACING)) {\n"
-                + "\t\t\t\tIChiselContextPreviewRendererRegistry.getInstance()\n"
-                + "\t\t\t\t\t\t.getCurrent()\n"
-                + "\t\t\t\t\t\t.renderExistingContextsBoundingBox(worldRenderer, matrixStack, bufferSource, levelRenderState, partialTicks, placingContext);\n"
-                + "\t\t\t\t\t} else {\n"
-                + "\t\t\t\tILocalChiselingContextCache.getInstance().clear(ChiselingOperation.PLACING);\n"
-                + "\t\t\t\t\t}\n"
-                + "\t\t}\n"
-                + "\t}\n"
-                + "}\n";
+        String source = """
+            class Example {
+            	void render() {
+            		if (potentialPlacingContext.isPresent()) {
+            			final IChiselingContext placingContext = potentialPlacingContext.get();
+            			if (placingContext.getMode() == chiselMode && potentialPlacingContext.get()
+            					.getMode()
+            					.isStillValid(playerEntity, potentialPlacingContext.get(), ChiselingOperation.PLACING)) {
+            				IChiselContextPreviewRendererRegistry.getInstance()
+            						.getCurrent()
+            						.renderExistingContextsBoundingBox(worldRenderer, matrixStack, bufferSource, levelRenderState, partialTicks, placingContext);
+            					} else {
+            				ILocalChiselingContextCache.getInstance().clear(ChiselingOperation.PLACING);
+            					}
+            		}
+            	}
+            }""";
 
-        String expected = "class Example {\n"
-                + "\tvoid render() {\n"
-                + "\t\tif (potentialPlacingContext.isPresent()) {\n"
-                + "\t\t\tfinal IChiselingContext placingContext = potentialPlacingContext.get();\n"
-                + "\t\t\tif (placingContext.getMode() == chiselMode && potentialPlacingContext.get()\n"
-                + "\t\t\t\t\t.getMode()\n"
-                + "\t\t\t\t\t.isStillValid(playerEntity, potentialPlacingContext.get(), ChiselingOperation.PLACING)) {\n"
-                + "\t\t\t\tIChiselContextPreviewRendererRegistry.getInstance()\n"
-                + "\t\t\t\t\t\t.getCurrent()\n"
-                + "\t\t\t\t\t\t.renderExistingContextsBoundingBox(worldRenderer, matrixStack, bufferSource, levelRenderState, partialTicks, placingContext);\n"
-                + "\t\t\t} else {\n"
-                + "\t\t\t\tILocalChiselingContextCache.getInstance().clear(ChiselingOperation.PLACING);\n"
-                + "\t\t\t}\n"
-                + "\t\t}\n"
-                + "\t}\n"
-                + "}\n";
+        String expected = """
+            class Example {
+            	void render() {
+            		if (potentialPlacingContext.isPresent()) {
+            			final IChiselingContext placingContext = potentialPlacingContext.get();
+            			if (placingContext.getMode() == chiselMode && potentialPlacingContext.get()
+            					.getMode()
+            					.isStillValid(playerEntity, potentialPlacingContext.get(), ChiselingOperation.PLACING)) {
+            				IChiselContextPreviewRendererRegistry.getInstance()
+            						.getCurrent()
+            						.renderExistingContextsBoundingBox(worldRenderer, matrixStack, bufferSource, levelRenderState, partialTicks, placingContext);
+            			} else {
+            				ILocalChiselingContextCache.getInstance().clear(ChiselingOperation.PLACING);
+            			}
+            		}
+            	}
+            }""";
 
-        assertEquals(expected, step.formatter().format("Example.java", source));
+        assertEquals(expected.replace("    ", "\t"), step.formatter().format("Example.java", source));
     }
 
     @Test
@@ -327,112 +333,263 @@ class FormattingMechanicsRegressionTest {
     }
 
     @Test
-    void runSimulatedMethodWithComplexIndentations() {
+    void runSimulatedMethodWithContinuationOfIndentsOnAssignmentAndTerniaries() {
         CheckstyleWhitespaceAroundStep whitespace = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
         whitespace.getTokens().set(java.util.List.of("ASSIGN", "QUESTION", "COLON"));
         CheckstyleIndentationStep indentation = indentationStep();
 
-        String source = "\tpublic BitBlockModelInformation build(final BlockAndTintGetter surroundings) {\n"
-            + "\t\tfinal Map<IntList, List<BakedQuad>> quadsByTints = new HashMap<>();\n"
-            + "\n"
-            + "\t\tfinal SingleBlockBlockAndTintGetter blockAndTintGetter = new SingleBlockBlockAndTintGetter.Builder()  \n"
-            + "\t\t\t\t.withBlockState(information().blockState())\n"
-            + "\t\t\t\t.withBlockEntity(information()::newBlockEntityAtZero)\n"
-            + "\t\t\t\t.withSource(surroundings)\n"
-            + "\t\t\t\t.createSingleBlockBlockAndTintGetter();\n"
-            + "\n"
-            + "\t\tfor (final Direction myFace : Direction.values()) {\n"
-            + "\t\t\tQuadGenerationUtils.generateQuads(\n"
-            + "\t\t\t\t\tinformation(),\n"
-            + "\t\t\t\t\tmyFace,\n"
-            + "\t\t\t\t\tblockAndTintGetter,\n"
-            + "\t\t\t\t\tBlockPos.ZERO,\n"
-            + "\t\t\t\t\tmyFace.getAxisDirection() == Direction.AxisDirection.POSITIVE ? TO : FROM,\n"
-            + "\t\t\t\t\tmyFace.getAxisDirection() == Direction.AxisDirection.NEGATIVE ? TO : FROM,\n"
-            + "\t\t\t\t\t(layer, quad) -> {\n"
-            + "\t\t\t\t\t\tif (layer.material().tintIndex() != -1) {\n"
-            + "\t\t\t\t\t\t\tquad.tintIndex(0);\n"
-            + "\t\t\t\t\t\t}\n"
-            + "\t\t\t\t\t},\n"
-            + "\n"
-            + "\n"
-            + "\t\t\t\t\tgeneratedQuad -> {\n"
-            + "\t\t\t\t\t\tfinal List<BlockTintSource> tintSources =\n"
-            + "\t\t\t\t\tinformation.isFluid()\n"
-            + "\t\t\t\t\t\t\t\t? getFluidTintSources()\n"
-            + "\t\t\t\t\t\t\t\t: Minecraft.getInstance().getBlockColors().getTintSources(information.blockState());\n"
-            + "\t\t\t\t\t\tfinal IntList tints = new IntArrayList(tintSources.size());\n"
-            + "\t\t\t\t\t\ttintSources.forEach(source -> {\n"
-            + "\t\t\t\t\t\t\ttints.add(\n"
-            + "\t\t\t\t\t\t\t\t\tsource.colorInWorld(information.blockState(),\n"
-            + "\t\t\t\t\t\t\t\t\t\t\tblockAndTintGetter,\n"
-            + "\t\t\t\t\t\t\t\t\t\t\tBlockPos.ZERO)\n"
-            + "\t\t\t\t\t\t\t);\n"
-            + "\t\t\t\t\t\t});\n"
-            + "\n"
-            + "\t\t\t\t\t\tquadsByTints.computeIfAbsent(tints, (_) -> new ArrayList<>())\n"
-            + "\t\t\t\t\t\t.add(generatedQuad.quad());\n"
-            + "\t\t\t\t\t});\n"
-            + "\t\t}\n"
-            + "\n"
-            + "\t\tfinal List<BitBlockModelPart> parts =\n"
-            + "\t\t\tquadsByTints.entrySet().stream()\n"
-            + "\t\t\t\t.map(c -> new BitBlockModelPart(c.getValue(), c.getKey()))\n"
-            + "\t\t\t\t.toList();\n"
-            + "\n"
-            + "\t\treturn new BitBlockModelInformation(parts, true, isLarge());\n"
-            + "\t}";
+        String source = """
+            public BitBlockModelInformation build(final BlockAndTintGetter surroundings) {
+                final Map<IntList, List<BakedQuad>> quadsByTints = new HashMap<>();
+        
+                final SingleBlockBlockAndTintGetter blockAndTintGetter = new SingleBlockBlockAndTintGetter.Builder() \s
+                        .withBlockState(information().blockState())
+                        .withBlockEntity(information()::newBlockEntityAtZero)
+                        .withSource(surroundings)
+                        .createSingleBlockBlockAndTintGetter();
+        
+                for (final Direction myFace : Direction.values()) {
+                    QuadGenerationUtils.generateQuads(
+                            information(),
+                            myFace,
+                            blockAndTintGetter,
+                            BlockPos.ZERO,
+                            myFace.getAxisDirection() == Direction.AxisDirection.POSITIVE ? TO : FROM,
+                            myFace.getAxisDirection() == Direction.AxisDirection.NEGATIVE ? TO : FROM,
+                            (layer, quad) -> {
+                                if (layer.material().tintIndex() != -1) {
+                                    quad.tintIndex(0);
+                                }
+                            },
+        
+        
+                            generatedQuad -> {
+                                final List<BlockTintSource> tintSources =
+                            information.isFluid()
+                                        ? getFluidTintSources()
+                                        : Minecraft.getInstance().getBlockColors().getTintSources(information.blockState());
+                                final IntList tints = new IntArrayList(tintSources.size());
+                                tintSources.forEach(source -> {
+                                    tints.add(
+                                            source.colorInWorld(information.blockState(),
+                                                    blockAndTintGetter,
+                                                    BlockPos.ZERO)
+                                    );
+                                });
+        
+                                quadsByTints.computeIfAbsent(tints, (_) -> new ArrayList<>())
+                                .add(generatedQuad.quad());
+                            });
+                }
+        
+                final List<BitBlockModelPart> parts =
+                    quadsByTints.entrySet().stream()
+                        .map(c -> new BitBlockModelPart(c.getValue(), c.getKey()))
+                        .toList();
+        
+                return new BitBlockModelInformation(parts, true, isLarge());
+            }""";
 
-        String expected = "public BitBlockModelInformation build(final BlockAndTintGetter surroundings) {\n"
-            + "\tfinal Map<IntList, List<BakedQuad>> quadsByTints = new HashMap<>();\n"
-            + "\n"
-            + "\tfinal SingleBlockBlockAndTintGetter blockAndTintGetter = new SingleBlockBlockAndTintGetter.Builder()\n"
-            + "\t\t\t.withBlockState(information().blockState())\n"
-            + "\t\t\t.withBlockEntity(information()::newBlockEntityAtZero)\n"
-            + "\t\t\t.withSource(surroundings)\n"
-            + "\t\t\t.createSingleBlockBlockAndTintGetter();\n"
-            + "\n"
-            + "\tfor (final Direction myFace : Direction.values()) {\n"
-            + "\t\tQuadGenerationUtils.generateQuads(\n"
-            + "\t\t\t\tinformation(),\n"
-            + "\t\t\t\tmyFace,\n"
-            + "\t\t\t\tblockAndTintGetter,\n"
-            + "\t\t\t\tBlockPos.ZERO,\n"
-            + "\t\t\t\tmyFace.getAxisDirection() == Direction.AxisDirection.POSITIVE ? TO : FROM,\n"
-            + "\t\t\t\tmyFace.getAxisDirection() == Direction.AxisDirection.NEGATIVE ? TO : FROM,\n"
-            + "\t\t\t\t(layer, quad) -> {\n"
-            + "\t\t\t\t\tif (layer.material().tintIndex() != -1) {\n"
-            + "\t\t\t\t\t\tquad.tintIndex(0);\n"
-            + "\t\t\t\t\t}\n"
-            + "\t\t\t\t},\n"
-            + "\n"
-            + "\n"
-            + "\t\t\t\tgeneratedQuad -> {\n"
-            + "\t\t\t\t\tfinal List<BlockTintSource> tintSources =\n"
-            + "\t\t\t\t\t\t\tinformation.isFluid()\n"
-            + "\t\t\t\t\t\t\t\t\t\t? getFluidTintSources()\n"
-            + "\t\t\t\t\t\t\t\t\t\t: Minecraft.getInstance().getBlockColors().getTintSources(information.blockState());\n"
-            + "\t\t\t\t\tfinal IntList tints = new IntArrayList(tintSources.size());\n"
-            + "\t\t\t\t\ttintSources.forEach(source -> {\n"
-            + "\t\t\t\t\t\ttints.add(\n"
-            + "\t\t\t\t\t\t\t\tsource.colorInWorld(information.blockState(),\n"
-            + "\t\t\t\t\t\t\t\t\t\tblockAndTintGetter,\n"
-            + "\t\t\t\t\t\t\t\t\t\tBlockPos.ZERO)\n"
-            + "\t\t\t\t\t\t);\n"
-            + "\t\t\t\t\t});\n"
-            + "\n"
-            + "\t\t\t\t\tquadsByTints.computeIfAbsent(tints, (_) -> new ArrayList<>())\n"
-            + "\t\t\t\t\t\t.add(generatedQuad.quad());\n"
-            + "\t\t\t\t});\n"
-            + "\t}\n"
-            + "\n"
-            + "\tfinal List<BitBlockModelPart> parts =\n"
-            + "\t\t\tquadsByTints.entrySet().stream()\n"
-            + "\t\t\t\t.map(c -> new BitBlockModelPart(c.getValue(), c.getKey()))\n"
-            + "\t\t\t\t.toList();\n"
-            + "\n"
-            + "\treturn new BitBlockModelInformation(parts, true, isLarge());\n"
-            + "}";
+        String expected = """
+            public BitBlockModelInformation build(final BlockAndTintGetter surroundings) {
+            	final Map<IntList, List<BakedQuad>> quadsByTints = new HashMap<>();
+            
+            	final SingleBlockBlockAndTintGetter blockAndTintGetter = new SingleBlockBlockAndTintGetter.Builder()
+            			.withBlockState(information().blockState())
+            			.withBlockEntity(information()::newBlockEntityAtZero)
+            			.withSource(surroundings)
+            			.createSingleBlockBlockAndTintGetter();
+            
+            	for (final Direction myFace : Direction.values()) {
+            		QuadGenerationUtils.generateQuads(
+            				information(),
+            				myFace,
+            				blockAndTintGetter,
+            				BlockPos.ZERO,
+            				myFace.getAxisDirection() == Direction.AxisDirection.POSITIVE ? TO : FROM,
+            				myFace.getAxisDirection() == Direction.AxisDirection.NEGATIVE ? TO : FROM,
+            				(layer, quad) -> {
+            					if (layer.material().tintIndex() != -1) {
+            						quad.tintIndex(0);
+            					}
+            				},
+            
+            
+            				generatedQuad -> {
+            					final List<BlockTintSource> tintSources =
+            							information.isFluid()
+                                            ? getFluidTintSources()
+                                            : Minecraft.getInstance().getBlockColors().getTintSources(information.blockState());
+            					final IntList tints = new IntArrayList(tintSources.size());
+            					tintSources.forEach(source -> {
+            						tints.add(
+            								source.colorInWorld(information.blockState(),
+            										blockAndTintGetter,
+            										BlockPos.ZERO)
+            						);
+            					});
+            
+            					quadsByTints.computeIfAbsent(tints, (_) -> new ArrayList<>())
+                                        .add(generatedQuad.quad());
+            				});
+            	}
+            
+            	final List<BitBlockModelPart> parts =
+            			quadsByTints.entrySet().stream()
+            				.map(c -> new BitBlockModelPart(c.getValue(), c.getKey()))
+            				.toList();
+            
+            	return new BitBlockModelInformation(parts, true, isLarge());
+            }""";
+
+        String afterWhitespace = whitespace.formatter().format("Example.java", source);
+        String formatted = indentation.formatter().format("Example.java", afterWhitespace);
+        assertEquals(expected.replace("    ", "\t"), formatted);
+    }
+
+    @Test
+    void runSimulatedMethodWithContinuationOfIndentsOnIfSwitches() {
+        CheckstyleWhitespaceAroundStep whitespace = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+        whitespace.getTokens().set(java.util.List.of("ASSIGN", "QUESTION", "COLON"));
+        CheckstyleIndentationStep indentation = indentationStep();
+
+        String source = """
+            public static List<AABB> compressStates(
+            			final IAreaAccessor accessor,
+            			final CollisionType sizeType) {
+            		final BuildingState state = new BuildingState();
+            
+            		//X == REGION
+            		//Y == FACE
+            
+            		//noinspection Convert2Lambda We need this to be pre-compiled
+            		accessor.forEachWithPositionMutator(
+            				IPositionMutator.xyz(),
+            			new Consumer<>() {
+            				@Override
+            				public void accept(final IStateEntryInfo stateEntryInfo) {
+            					if (state.getRegionBuildingAxisValue() != stateEntryInfo.getStartPoint().x()) {
+            						state.setCurrentBox(null, null);
+            					}
+            
+            					state.setRegionBuildingAxisValue(stateEntryInfo.getStartPoint().x());
+            
+            					if (state.getFaceBuildingAxisValue() != stateEntryInfo.getStartPoint().y()) {
+            						state.setCurrentBox(null, null);
+            					}
+            
+            					state.setFaceBuildingAxisValue(stateEntryInfo.getStartPoint().y());
+            
+            					final Optional<Vec3> previousCenterPoint = state.getLastCenter();
+            					final Vec3 centerPoint = stateEntryInfo.getCenterPoint();
+            					state.onNextEntry(centerPoint);
+            
+            					final Optional<Direction> stepDirection = previousCenterPoint.flatMap(
+            							d -> DirectionUtils.getDirectionVectorBetweenIfAligned(centerPoint, d)
+            					);
+            
+            					final Optional<AABB> potentialEntryData = buildBoundingBox(stateEntryInfo, sizeType);
+            
+            					if (potentialEntryData.isEmpty()) {
+            						state.setCurrentBox(null, centerPoint);
+            						return;
+            					}
+            
+            					final AABB entryData = potentialEntryData.get();
+            
+            					if (state.getCurrentBox() != null) {
+            						if (stepDirection
+            							.map(direction -> AABBUtils.areBoxesNeighbors(state.getCurrentBox(), entryData, direction))
+            							.filter(b -> b)
+            							.isPresent()) {
+            						state.expandCurrentBoxToInclude(entryData, centerPoint);
+            
+            						if (attemptMergeWithNeighbors(state, centerPoint, state.getCurrentBox())) {
+            							return;
+            						}
+            
+            						return;
+            					}
+            					}
+            
+            					if (attemptMergeWithNeighbors(state, centerPoint, entryData)) {
+            						return;
+            					}
+            
+            					state.setCurrentBox(potentialEntryData.get(), centerPoint);
+            				}
+            			});
+            		return Lists.newArrayList(state.getBoxes());
+            	}""";
+
+        String expected = """
+            public static List<AABB> compressStates(
+            		final IAreaAccessor accessor,
+            		final CollisionType sizeType) {
+            	final BuildingState state = new BuildingState();
+            
+            	//X == REGION
+            	//Y == FACE
+            
+            	//noinspection Convert2Lambda We need this to be pre-compiled
+            	accessor.forEachWithPositionMutator(
+            			IPositionMutator.xyz(),
+            			new Consumer<>() {
+            				@Override
+            				public void accept(final IStateEntryInfo stateEntryInfo) {
+            					if (state.getRegionBuildingAxisValue() != stateEntryInfo.getStartPoint().x()) {
+            						state.setCurrentBox(null, null);
+            					}
+            
+            					state.setRegionBuildingAxisValue(stateEntryInfo.getStartPoint().x());
+            
+            					if (state.getFaceBuildingAxisValue() != stateEntryInfo.getStartPoint().y()) {
+            						state.setCurrentBox(null, null);
+            					}
+            
+            					state.setFaceBuildingAxisValue(stateEntryInfo.getStartPoint().y());
+            
+            					final Optional<Vec3> previousCenterPoint = state.getLastCenter();
+            					final Vec3 centerPoint = stateEntryInfo.getCenterPoint();
+            					state.onNextEntry(centerPoint);
+            
+            					final Optional<Direction> stepDirection = previousCenterPoint.flatMap(
+            							d -> DirectionUtils.getDirectionVectorBetweenIfAligned(centerPoint, d)
+            					);
+            
+            					final Optional<AABB> potentialEntryData = buildBoundingBox(stateEntryInfo, sizeType);
+            
+            					if (potentialEntryData.isEmpty()) {
+            						state.setCurrentBox(null, centerPoint);
+            						return;
+            					}
+            
+            					final AABB entryData = potentialEntryData.get();
+            
+            					if (state.getCurrentBox() != null) {
+            						if (stepDirection
+            								.map(direction -> AABBUtils.areBoxesNeighbors(state.getCurrentBox(), entryData, direction))
+            								.filter(b -> b)
+            								.isPresent()) {
+            							state.expandCurrentBoxToInclude(entryData, centerPoint);
+            
+            							if (attemptMergeWithNeighbors(state, centerPoint, state.getCurrentBox())) {
+            								return;
+            							}
+            
+            							return;
+            						}
+            					}
+            
+            					if (attemptMergeWithNeighbors(state, centerPoint, entryData)) {
+            						return;
+            					}
+            
+            					state.setCurrentBox(potentialEntryData.get(), centerPoint);
+            				}
+            			});
+            	return Lists.newArrayList(state.getBoxes());
+            }""";
 
         String afterWhitespace = whitespace.formatter().format("Example.java", source);
         String formatted = indentation.formatter().format("Example.java", afterWhitespace);
