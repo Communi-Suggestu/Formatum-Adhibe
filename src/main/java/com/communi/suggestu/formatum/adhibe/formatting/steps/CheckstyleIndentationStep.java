@@ -34,6 +34,9 @@ public abstract class CheckstyleIndentationStep extends FormattingStep
     @Input
     public abstract Property<Integer> getLineWrappingIndentation();
 
+    @Input
+    public abstract Property<RegionFinder.ParseMode> getParseMode();
+
     @Override
     public FileFormatter formatter()
     {
@@ -46,7 +49,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep
         int continuationTabs = Math.max(1, getLineWrappingIndentation().getOrElse(8) / Math.max(1, getBasicOffset().getOrElse(4)));
         int inheritanceContinuationIndent = -1;
 
-        final RegionFinder regionFinder = new RegionFinder();
+        final RegionFinder regionFinder = new RegionFinder(getParseMode().getOrElse(RegionFinder.ParseMode.DEFAULT));
         final RegionFinder.Region rootRegion = regionFinder.findRoot(text);
 
         for (int i = 0; i < lines.size(); i++)

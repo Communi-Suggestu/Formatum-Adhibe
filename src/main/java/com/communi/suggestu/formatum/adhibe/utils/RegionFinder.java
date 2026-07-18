@@ -10,8 +10,22 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class RegionFinder
+public record RegionFinder(ParseMode parseMode)
 {
+
+    public enum ParseMode {
+        DEFAULT(false),
+        HARD(true);
+
+        private final boolean throwOnUnopenedStatements;
+
+        ParseMode(final boolean throwOnUnopenedStatements) {this.throwOnUnopenedStatements = throwOnUnopenedStatements;}
+
+        private boolean throwsOnUnopenedStatements()
+        {
+            return throwOnUnopenedStatements;
+        }
+    }
 
     public record RegionOffset(
         int totalCharacterOffset,
@@ -292,12 +306,14 @@ public class RegionFinder
         }
 
         private boolean isIsolatedEndClosingOperand() {
-            final String endLine = content.split("\n")[end().lineOffset() - start().lineOffset()].trim();
+            final var lines = content().split("\n");
+            final var endLine =  lines[lines.length - 1].trim();
             return endLine.equals("}") || endLine.equals(")") || endLine.equals("]");
         }
 
         private boolean isIsolatedStartOpeningOperand() {
-            final String startLine = content.split("\n")[0].trim();
+            final var lines = content().split("\n");
+            final var startLine =  lines[0].trim();
             return startLine.equals("{") || startLine.equals("(") || startLine.equals("[");
         }
     }
@@ -546,7 +562,10 @@ public class RegionFinder
                     if (bracedRegionStack.isEmpty())
                         continue;
 
-                    throw new IllegalStateException("Found closing parameter declaration without opening companion!");
+                    if (parseMode().throwsOnUnopenedStatements())
+                        throw new IllegalStateException("Found closing parameter declaration without opening companion!");
+
+                    continue;
                 }
 
                 Region region = createStatementLikeRegion(content, currentChildren, statementStart, i);
