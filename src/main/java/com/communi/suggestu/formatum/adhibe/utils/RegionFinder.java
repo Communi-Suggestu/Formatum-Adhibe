@@ -359,6 +359,7 @@ public record RegionFinder(ParseMode parseMode)
             }
 
             char next = i + 1 < content.length() ? content.charAt(i + 1) : '\0';
+            char secondNext = i + 2 < content.length() ? content.charAt(i + 2) : '\0';
             if (!inString && !inChar && c == '/' && next == '/')
             {
                 while(c != '\n') {
@@ -368,6 +369,20 @@ public record RegionFinder(ParseMode parseMode)
                     }
 
                     c = content.charAt(i);
+                }
+            }
+
+            if (!inString && !inChar && c == '/' && next == '*' && secondNext == '*')
+            {
+                while (!(c == '*' && next == '/')) {
+                    i++;
+                    if (i == content.length()) {
+                        break contentLoop;
+                    }
+
+                    c = content.charAt(i);
+                    next = i + 1 < content.length() ? content.charAt(i + 1) : '\0';
+                    secondNext = i + 2 < content.length() ? content.charAt(i + 2) : '\0';
                 }
             }
 
