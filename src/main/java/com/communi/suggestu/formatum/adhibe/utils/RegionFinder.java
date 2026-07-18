@@ -9,6 +9,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public record RegionFinder(ParseMode parseMode)
 {
@@ -52,7 +53,7 @@ public record RegionFinder(ParseMode parseMode)
             if (lastIndexOfNewLine < 0)
                 return 0;
 
-            var contentLineCount = preContent.split("\n").length;
+            int contentLineCount = (int) preContent.lines().count();
             if (preContent.endsWith("\n"))
             {
                 return contentLineCount;
@@ -88,6 +89,15 @@ public record RegionFinder(ParseMode parseMode)
         }
     }
 
+    private static String[] splitLinesPreservingTrailingNewLines(String content) {
+        var linesStream = content.lines();
+        if (content.endsWith("\n")) {
+            linesStream = Stream.concat(linesStream, Stream.of(""));
+        }
+
+        return linesStream.toArray(String[]::new);
+    }
+
     public record Region(
         Region[] children,
         boolean isParameterBlock,
@@ -120,7 +130,7 @@ public record RegionFinder(ParseMode parseMode)
                 isStatement,
                 isControl,
                 content,
-                content.split("\n"),
+                splitLinesPreservingTrailingNewLines(content),
                 start,
                 end
             );
