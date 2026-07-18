@@ -39,22 +39,29 @@ public record RegionFinder(ParseMode parseMode)
                 return 0;
 
             if (totalCharacterOffset == content.length())
-                return content.split("\n").length - 1;
-
-            String[] lines = content.split("\n");
-            for (int i = 0; i < lines.length; i++)
             {
-                totalCharacterOffset -= (lines[i].length() + 1); // Add a plus one for line length to cover the removal of the new line.
-                if (totalCharacterOffset <= 0)
-                {
-                    return i;
-                }
+                var contentLineCount = content.split("\n").length;
+                if (content.endsWith("\n"))
+                    return contentLineCount;
+
+                return contentLineCount - 1;
             }
 
-            throw new IllegalArgumentException("The offset is beyond the boundary of the given content.");
+            var preContent = content.substring(0, totalCharacterOffset);
+            var lastIndexOfNewLine = preContent.lastIndexOf('\n');
+            if (lastIndexOfNewLine < 0)
+                return 0;
+
+            var contentLineCount = preContent.split("\n").length;
+            if (preContent.endsWith("\n"))
+            {
+                return contentLineCount;
+            }
+
+            return contentLineCount - 1;
         }
 
-        private static int calculateInLineOffset(String content, long totalCharacterOffset)
+        private static int calculateInLineOffset(String content, int totalCharacterOffset)
         {
             if (totalCharacterOffset == 0)
                 return 0;
@@ -66,23 +73,13 @@ public record RegionFinder(ParseMode parseMode)
                 }
             }
 
-            String[] lines = content.split("\n");
-            for (final String line : lines)
-            {
-                if (totalCharacterOffset < (line.length() + 1)) //See below and above comment on why the +1 on the length.
-                {
-                    return (int) totalCharacterOffset;
-                }
+            var preContent = content.substring(0, totalCharacterOffset);
+            var lastIndexOfNewLine = preContent.lastIndexOf('\n');
+            if (lastIndexOfNewLine < 0)
+                return totalCharacterOffset;
 
-                totalCharacterOffset -= (line.length() + 1); // Add a plus one for line length to cover the removal of the new line.
-
-                if (totalCharacterOffset == 0)
-                {
-                    return line.length() + 1;
-                }
-            }
-
-            throw new IllegalArgumentException("The offset is beyond the boundary of the given content.");
+            var linePreContent = preContent.substring(lastIndexOfNewLine + 1);
+            return linePreContent.length();
         }
 
         public RegionOffset(String content, int totalCharacterOffset)
@@ -99,9 +96,35 @@ public record RegionFinder(ParseMode parseMode)
         boolean isStatement,
         boolean isControl,
         String content,
+        String[] lines,
         RegionOffset start,
         RegionOffset end)
     {
+
+        public Region(
+            final Region[] children,
+            final boolean isParameterBlock,
+            final boolean isCodeBlock,
+            final boolean isArrayInitializer,
+            final boolean isStatement,
+            final boolean isControl,
+            final String content,
+            final RegionOffset start,
+            final RegionOffset end)
+        {
+            this(
+                children,
+                isParameterBlock,
+                isCodeBlock,
+                isArrayInitializer,
+                isStatement,
+                isControl,
+                content,
+                content.split("\n"),
+                start,
+                end
+            );
+        }
 
         public boolean hasMultipleParameterChildren() {
             return Arrays.stream(children())
@@ -139,7 +162,7 @@ public record RegionFinder(ParseMode parseMode)
         }
 
         public boolean isMultiLineAssignmentStatementSplitOnOperator() {
-            return content().split("\n")[0].trim().endsWith("=") && isMultiLineBrokenAssignmentStatement();
+            return lines()[0].trim().endsWith("=") && isMultiLineBrokenAssignmentStatement();
         }
 
         public boolean isMultiLineMethodStatement() {
@@ -241,7 +264,16 @@ public record RegionFinder(ParseMode parseMode)
 
         private String getContentLine(final int lineIndex)
         {
-            return content().split("\n")[lineIndex - start().lineOffset()].trim();
+            var regionLineIndex = lineIndex - start().lineOffset();
+            if (regionLineIndex < 0) {
+                throw new IllegalArgumentException("The given global line index: " + lineIndex + " targets a line which is before this regions start line: " + start().lineOffset());
+            }
+
+            if (regionLineIndex >= lines().length) {
+                throw new IllegalArgumentException("The given global line index: " + lineIndex + " targets a line which is after this regions end line: " + end().lineOffset() + " with line count: " + lines().length + " and start line: " + start().lineOffset());
+            }
+
+            return lines()[regionLineIndex].trim();
         }
 
         public boolean isMultiLine()
@@ -306,14 +338,12 @@ public record RegionFinder(ParseMode parseMode)
         }
 
         private boolean isIsolatedEndClosingOperand() {
-            final var lines = content().split("\n");
-            final var endLine =  lines[lines.length - 1].trim();
+            final var endLine = lines()[lines.length - 1].trim();
             return endLine.equals("}") || endLine.equals(")") || endLine.equals("]");
         }
 
         private boolean isIsolatedStartOpeningOperand() {
-            final var lines = content().split("\n");
-            final var startLine =  lines[0].trim();
+            final var startLine = lines()[0].trim();
             return startLine.equals("{") || startLine.equals("(") || startLine.equals("[");
         }
     }
