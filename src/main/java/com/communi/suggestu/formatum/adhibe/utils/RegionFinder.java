@@ -340,13 +340,14 @@ public record RegionFinder(ParseMode parseMode)
 
         boolean nextBraceStartsLambda = false;
         boolean nextBraceStartsAnonymousClass = false;
+        boolean insideNewStatement = false;
 
         contentLoop:
         for (int i = 0; i < content.length(); i++)
         {
             char c = content.charAt(i);
             boolean isWhitespace = !String.valueOf(c).trim().equals(String.valueOf(c));
-            String surroundingContent = content.substring(Math.max(i - 25, 0), Math.min(i + 25, content.length() - 1));
+            String surroundingContent = content.substring(Math.max(i - 4, 0), Math.min(i + 4, content.length() - 1));
 
             for (int j = i - 1; j > 0; j--)
             {
@@ -405,8 +406,13 @@ public record RegionFinder(ParseMode parseMode)
                 nextBraceStartsLambda = false;
             }
 
-            if (isWhitespace && i > 2 && content.charAt(i - 2) == '(' && content.charAt(i - 1) == ')') {
+            if (isWhitespace && !insideNewStatement && i > 3 && content.startsWith("new ", i - 3)) {
+                insideNewStatement = true;
+            } else if (isWhitespace && i > 2 && content.charAt(i - 2) == '(' && content.charAt(i - 1) == ')' && insideNewStatement) {
                 nextBraceStartsAnonymousClass = true;
+                insideNewStatement = false;
+            } else if (isWhitespace && insideNewStatement) {
+                insideNewStatement = false;
             }
 
             // Lambda operator
