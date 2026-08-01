@@ -258,7 +258,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				//We are in a statement continuation -> bump by at least one
 				else if (region.isMultiLineMethodStatement()
 						&& (previous == null || !previous.isParameterBlock())
-						&& (!isLambdaParameter(next, secondNext))
+						&& (!isLambdaParameterStartingOnSameLine(region, next, secondNext))
 						&& !region.isStart(lineIndex)) {
 					depth++;
 					if (debugMode == DebugMode.RegionDepthTracking) {
@@ -280,6 +280,14 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 			}
 
 			return depth;
+		}
+
+		private boolean isLambdaParameterStartingOnSameLine(final Region region, final Region target, final Region next) {
+			if (!isLambdaParameter(target, next))
+				return false;
+
+			//We know next is not null, that is a requisite from the isLambdaParameter
+			return next.start().lineOffset() == region.start().lineOffset();
 		}
 
 		private boolean isLambdaParameter(final Region target, final Region next) {
