@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public record RegionFinder(ParseMode parseMode) {
+public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 
 	public enum ParseMode {
 		DEFAULT(false),
@@ -24,6 +24,11 @@ public record RegionFinder(ParseMode parseMode) {
 		private boolean throwsOnUnopenedStatements() {
 			return throwOnUnopenedStatements;
 		}
+	}
+
+	public enum DebugMode {
+		Off,
+		RegionDepthTracking
 	}
 
 	public record RegionOffset(
@@ -104,7 +109,8 @@ public record RegionFinder(ParseMode parseMode) {
 			String content,
 			String[] lines,
 			RegionOffset start,
-			RegionOffset end) {
+			RegionOffset end,
+			DebugMode debugMode) {
 
 		public Region(
 				final Region[] children,
@@ -115,7 +121,8 @@ public record RegionFinder(ParseMode parseMode) {
 				final boolean isControl,
 				final String content,
 				final RegionOffset start,
-				final RegionOffset end) {
+				final RegionOffset end,
+				final DebugMode debugMode) {
 			this(
 					children,
 					isParameterBlock,
@@ -126,7 +133,8 @@ public record RegionFinder(ParseMode parseMode) {
 					content,
 					splitLinesPreservingTrailingNewLines(content),
 					start,
-					end
+					end,
+					debugMode
 			);
 		}
 
@@ -182,6 +190,10 @@ public record RegionFinder(ParseMode parseMode) {
 		}
 
 		public int regionDepthAtStartOfLine(final int lineIndex) {
+			return regionDepthAtStartOfLine(lineIndex, new ArrayList<>());
+		}
+
+		public int regionDepthAtStartOfLine(final int lineIndex, List<String> depthReasons) {
 			String line = content.split("\n")[lineIndex - start().lineOffset()];
 			if (line.trim().isEmpty()) {
 				return 0;
@@ -196,7 +208,8 @@ public record RegionFinder(ParseMode parseMode) {
 			for (int i = 0; i < chain.size(); i++) {
 				final Region previous = i != 0 ? chain.get(i - 1) : null;
 				final Region region = chain.get(i);
-				final Region next = i != (chain.size() - 1) ? chain.get(i + 1) : null;
+				final Region next = i < (chain.size() - 1) ? chain.get(i + 1) : null;
+				final Region secondNext = i < (chain.size() - 2) ? chain.get(i + 2) : null;
 
 				//If we are a parameter block, bump by two
 				if (region.isParameterBlock()) {
@@ -204,7 +217,13 @@ public record RegionFinder(ParseMode parseMode) {
 						//We do not apply parameter indentation if it is closing operands only.
 						if (next != null || region.isNotClosingOperandsOnly(lineIndex)) {
 							depth++;
+							if (debugMode == DebugMode.RegionDepthTracking) {
+								depthReasons.add("Parameter block depth increase 1");
+							}
 							depth++;
+							if (debugMode == DebugMode.RegionDepthTracking) {
+								depthReasons.add("Parameter block depth increase 2");
+							}
 						}
 					}
 				}
@@ -219,29 +238,54 @@ public record RegionFinder(ParseMode parseMode) {
 						var inRegionLineOffset = region.inRegionLineOffset(lineIndex);
 						if (inRegionLineOffset > 0) {
 							depth++;
+							if (debugMode == DebugMode.RegionDepthTracking) {
+								depthReasons.add("Multi-line broken assignment continuation depth increase 1");
+							}
 							depth++;
+							if (debugMode == DebugMode.RegionDepthTracking) {
+								depthReasons.add("Multi-line broken assignment continuation depth increase 2");
+							}
 						}
 
 						if (region.isMultiLineAssignmentStatementSplitOnOperator() && inRegionLineOffset > 1) {
 							depth++;
+							if (debugMode == DebugMode.RegionDepthTracking) {
+								depthReasons.add("Multi-line assignment split on operator depth increase");
+							}
 						}
 					}
 				}
 				//We are in a statement continuation -> bump by at least one
 				else if (region.isMultiLineMethodStatement()
 						&& (previous == null || !previous.isParameterBlock())
+						&& (!isLambdaParameter(next, secondNext))
 						&& !region.isStart(lineIndex)) {
 					depth++;
+					if (debugMode == DebugMode.RegionDepthTracking) {
+						depthReasons.add("Multi-line method statement continuation depth increase 1");
+					}
 					depth++;
+					if (debugMode == DebugMode.RegionDepthTracking) {
+						depthReasons.add("Multi-line method statement continuation depth increase 2");
+					}
 				}
 
 				//Any code block we are in also gets us one
 				if (region.isCodeBlock() && !region.isIsolatedStartOrEndOperand(lineIndex)) {
 					depth++;
+					if (debugMode == DebugMode.RegionDepthTracking) {
+						depthReasons.add("Code block depth increase");
+					}
 				}
 			}
 
 			return depth;
+		}
+
+		private boolean isLambdaParameter(final Region target, final Region next) {
+			//A lambda in a parameter.
+			return target != null && target.isParameterBlock() &&
+					next != null && next.isCodeBlock();
 		}
 
 		private static final Pattern NOT_CLOSING_OPERANDS = Pattern.compile("[^});\\]]");
@@ -501,7 +545,8 @@ public record RegionFinder(ParseMode parseMode) {
 						false,
 						regionContent,
 						start,
-						end
+						end,
+						debugMode()
 				);
 
 				currentChildren = childrenStack.pop();
@@ -572,7 +617,8 @@ public record RegionFinder(ParseMode parseMode) {
 							false,
 							regionContent,
 							start,
-							end
+							end,
+							debugMode()
 					);
 
 					if (parameterInfo.annotationStart() != null) {
@@ -589,7 +635,8 @@ public record RegionFinder(ParseMode parseMode) {
 								false,
 								regionContent,
 								start,
-								end
+								end,
+								debugMode()
 						);
 
 						if (statementStart != null && statementStart.equals(parameterInfo.annotationStart())) {
@@ -630,7 +677,8 @@ public record RegionFinder(ParseMode parseMode) {
 						false,
 						regionContent,
 						start,
-						end
+						end,
+						debugMode()
 				);
 
 				currentChildren = childrenStack.pop();
@@ -699,7 +747,8 @@ public record RegionFinder(ParseMode parseMode) {
 				false,
 				content,
 				new RegionOffset(content, 0),
-				new RegionOffset(content, content.length())
+				new RegionOffset(content, content.length()),
+				debugMode()
 		);
 	}
 
@@ -719,7 +768,8 @@ public record RegionFinder(ParseMode parseMode) {
 				isControl,
 				regionContent,
 				start,
-				end
+				end,
+				debugMode()
 		);
 	}
 

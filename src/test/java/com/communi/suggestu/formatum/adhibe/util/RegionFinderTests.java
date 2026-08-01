@@ -6,7 +6,9 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -20,7 +22,7 @@ public class RegionFinderTests
 
     @BeforeEach
     public void setUp() {
-        sut = new RegionFinder(RegionFinder.ParseMode.DEFAULT);
+        sut = new RegionFinder(RegionFinder.ParseMode.DEFAULT, RegionFinder.DebugMode.RegionDepthTracking);
     }
 
     @AfterEach
@@ -954,5 +956,66 @@ public class RegionFinderTests
 
             assertEquals(line, indentedLine, "Line with index:" + i + " does not have the correct indentation.");
         }
+    }
+
+    @Test
+    public void regionFinderHandlesComplexLambdas() {
+        String classText = """
+                public class ThisClass {
+                
+                    static <T> MapCodec<T> lazyNbtAware(MapCodec<T> codec, Function<T, CompoundTag> lazyTagSupplier) {
+                        return new MapCodec<T>() {
+                            @Override
+                            public <T1> Stream<T1> keys(DynamicOps<T1> ops) {
+                                return codec.keys(ops);
+                            }
+            
+                            @Override
+                            public <TData> DataResult<T> decode(DynamicOps<TData> ops, MapLike<TData> input) {
+                                return codec.decode(ops, input);
+                            }
+            
+                            @Override
+                            public <TData> RecordBuilder<TData> encode(T input, DynamicOps<TData> ops, RecordBuilder<TData> prefix) {
+                                final CompoundTag lazyTag = lazyTagSupplier.apply(input);
+                                final NbtOps nbtOps = NbtOps.INSTANCE;
+            
+                                if (lazyTag != null) {
+                                    lazyTag.keySet().forEach(key -> {
+                                        final Tag tag = lazyTag.get(key);
+    
+                                        if (tag != null) {
+                                            prefix.add(key, nbtOps.convertTo(ops, tag));
+                                        }
+                                    });
+            
+                                    return prefix;
+                                }
+            
+                                return codec.encode(input, ops, prefix);
+                            }
+                        };
+            
+                    }
+                }""".replace("    ", "\t");
+
+        final RegionFinder.Region root = sut.findRoot(classText);
+        assertNotNull(root);
+
+        final String[] lines = classText.split("\n");
+        final String[] calculatedDepthLines = new String[lines.length];
+        final List<List<String>> depthReasonsList = new ArrayList<>();
+
+        for (int i = 0; i < lines.length; i++)
+        {
+            var reasons = new ArrayList<String>();
+            var depth = root.regionDepthAtStartOfLine(i, reasons);
+
+            calculatedDepthLines[i] = "\t".repeat(depth) + lines[i].trim();
+            depthReasonsList.add(reasons);
+        }
+
+        final String formatResult = String.join("\n", calculatedDepthLines).trim();
+        assertEquals(classText, formatResult);
     }
 }

@@ -49,7 +49,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep
         int continuationTabs = Math.max(1, getLineWrappingIndentation().getOrElse(8) / Math.max(1, getBasicOffset().getOrElse(4)));
         int inheritanceContinuationIndent = -1;
 
-        final RegionFinder regionFinder = new RegionFinder(getParseMode().getOrElse(RegionFinder.ParseMode.DEFAULT));
+        final RegionFinder regionFinder = new RegionFinder(getParseMode().getOrElse(RegionFinder.ParseMode.DEFAULT), RegionFinder.DebugMode.Off);
         final RegionFinder.Region rootRegion = regionFinder.findRoot(text);
 
         for (int i = 0; i < lines.size(); i++)
