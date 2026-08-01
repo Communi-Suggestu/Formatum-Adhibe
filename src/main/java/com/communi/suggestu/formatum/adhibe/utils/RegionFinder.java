@@ -106,6 +106,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 			boolean isArrayInitializer,
 			boolean isStatement,
 			boolean isControl,
+			boolean isAnonymousClass,
+			boolean isLambda,
 			String content,
 			String[] lines,
 			RegionOffset start,
@@ -119,6 +121,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				final boolean isArrayInitializer,
 				final boolean isStatement,
 				final boolean isControl,
+				final boolean isAnonymousClass,
+				final boolean isLambda,
 				final String content,
 				final RegionOffset start,
 				final RegionOffset end,
@@ -130,6 +134,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 					isArrayInitializer,
 					isStatement,
 					isControl,
+					isAnonymousClass,
+					isLambda,
 					content,
 					splitLinesPreservingTrailingNewLines(content),
 					start,
@@ -234,7 +240,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 					//We only apply statement depth if we are not just closing operands only on the line and
 					//when we are not an assignment that is covered by the same parameter statement entirely.
 					if (region.isNotClosingOperandsOnly(lineIndex) &&
-							!region.hasAssignmentCoveringParameterBlock()) {
+							!region.hasAssignmentCoveringParameterBlock() &&
+							(next == null || !next.isAnonymousClass())) {
 						var inRegionLineOffset = region.inRegionLineOffset(lineIndex);
 						if (inRegionLineOffset > 0) {
 							depth++;
@@ -293,7 +300,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 		private boolean isLambdaParameter(final Region target, final Region next) {
 			//A lambda in a parameter.
 			return target != null && target.isParameterBlock() &&
-					next != null && next.isCodeBlock();
+					next != null && next.isCodeBlock() && next.isLambda();
 		}
 
 		private static final Pattern NOT_CLOSING_OPERANDS = Pattern.compile("[^});\\]]");
@@ -400,7 +407,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 
 	private record BracedRegionWrapper(
 			int index,
-			boolean isLambdaOrAnonymousClass) {}
+			boolean isLambda,
+			boolean isAnonymousClass) {}
 
 	private record StatementStartWrapper(
 			@Nullable Integer start,
@@ -532,7 +540,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 
 				var bracedRegion = bracedRegionStack.pop();
 				int bracedRegionStartIndex = bracedRegion.index();
-				boolean isLambda = bracedRegion.isLambdaOrAnonymousClass();
+				boolean isLambdaOrAnonymousClass = bracedRegion.isLambda() || bracedRegion.isAnonymousClass();
 
 				boolean performedStatementTerminationPrePop = false;
 				if (statementStart == null && !statementStack.isEmpty() && statementStack.peek().codeBlockStart() == bracedRegionStartIndex) {
@@ -551,6 +559,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 						false,
 						false,
 						false,
+						bracedRegion.isAnonymousClass(),
+						bracedRegion.isLambda(),
 						regionContent,
 						start,
 						end,
@@ -560,7 +570,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				currentChildren = childrenStack.pop();
 				currentChildren.add(region);
 
-				if (statementStart != null && !isLambda) {
+				if (statementStart != null && !isLambdaOrAnonymousClass) {
 					Region statement = createStatementLikeRegion(content, currentChildren, statementStart, i);
 
 					statementStart = null;
@@ -576,7 +586,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 			}
 
 			if (c == '{') {
-				bracedRegionStack.push(new BracedRegionWrapper(i, nextBraceStartsLambda || nextBraceStartsAnonymousClass));
+				bracedRegionStack.push(new BracedRegionWrapper(i, nextBraceStartsLambda, nextBraceStartsAnonymousClass));
 				childrenStack.push(currentChildren);
 				currentChildren = new ArrayList<>();
 
@@ -623,6 +633,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 							false,
 							false,
 							false,
+							false,
+							false,
 							regionContent,
 							start,
 							end,
@@ -640,6 +652,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 								false,
 								false,
 								true,
+								false,
+								false,
 								false,
 								regionContent,
 								start,
@@ -681,6 +695,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 						false,
 						false,
 						true,
+						false,
+						false,
 						false,
 						false,
 						regionContent,
@@ -753,6 +769,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				false,
 				false,
 				false,
+				false,
+				false,
 				content,
 				new RegionOffset(content, 0),
 				new RegionOffset(content, content.length()),
@@ -774,6 +792,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				false,
 				!isControl,
 				isControl,
+				false,
+				false,
 				regionContent,
 				start,
 				end,

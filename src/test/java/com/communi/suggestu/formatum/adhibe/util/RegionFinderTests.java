@@ -2,7 +2,6 @@ package com.communi.suggestu.formatum.adhibe.util;
 
 import com.communi.suggestu.formatum.adhibe.utils.RegionFinder;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -997,6 +996,41 @@ public class RegionFinderTests
                         };
             
                     }
+                }""".replace("    ", "\t");
+
+        final RegionFinder.Region root = sut.findRoot(classText);
+        assertNotNull(root);
+
+        final String[] lines = classText.split("\n");
+        final String[] calculatedDepthLines = new String[lines.length];
+        final List<List<String>> depthReasonsList = new ArrayList<>();
+
+        for (int i = 0; i < lines.length; i++)
+        {
+            var reasons = new ArrayList<String>();
+            var depth = root.regionDepthAtStartOfLine(i, reasons);
+
+            calculatedDepthLines[i] = "\t".repeat(depth) + lines[i].trim();
+            depthReasonsList.add(reasons);
+        }
+
+        final String formatResult = String.join("\n", calculatedDepthLines).trim();
+        assertEquals(classText, formatResult);
+    }
+
+    @Test
+    public void regionFinderHandlesStaticAnonymousInnerClassesAssignedToStaticField() {
+        String classText = """
+                public interface CBStreamCodecs {
+                	StreamCodec<FriendlyByteBuf, long[]> LONG_ARRAY = new StreamCodec<>() {
+                        public long [] decode(FriendlyByteBuf buffer) {
+                            return buffer.readLongArray();
+                		}
+                
+                        public void encode(FriendlyByteBuf buffer, long [] payload) {
+                            buffer.writeLongArray(payload);
+                		}
+                	};
                 }""".replace("    ", "\t");
 
         final RegionFinder.Region root = sut.findRoot(classText);
