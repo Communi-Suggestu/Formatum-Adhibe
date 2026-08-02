@@ -1,5 +1,6 @@
 package com.communi.suggestu.formatum.adhibe.util;
 
+import com.communi.suggestu.formatum.adhibe.utils.Region;
 import com.communi.suggestu.formatum.adhibe.utils.RegionFinder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +39,7 @@ public class RegionFinderTests
             }
             """;
 
-        final RegionFinder.Region root = sut.findRoot(classContent);
+        final Region root = sut.findRoot(classContent);
 
         assertNotNull(root);
         assertEquals(0, root.start().totalCharacterOffset());
@@ -72,7 +73,7 @@ public class RegionFinderTests
             }
             """;
 
-        RegionFinder.Region root = sut.findRoot(classContent);
+        Region root = sut.findRoot(classContent);
         assertNotNull(root);
     }
 
@@ -87,7 +88,7 @@ public class RegionFinderTests
             }
             """;
 
-        RegionFinder.Region root = sut.findRoot(classContent);
+        Region root = sut.findRoot(classContent);
 
         assertNotNull(root);
         assertEquals(0, root.regionDepthAtStartOfLine(0));
@@ -119,7 +120,7 @@ public class RegionFinderTests
             	}
             }""";
 
-        RegionFinder.Region root = sut.findRoot(classText);
+        Region root = sut.findRoot(classText);
         assertNotNull(root);
 
         final String[] lines = classText.split("\n");
@@ -164,7 +165,7 @@ public class RegionFinderTests
             	}
             }""";
 
-        RegionFinder.Region root = sut.findRoot(classText);
+        Region root = sut.findRoot(classText);
 
         assertNotNull(root);
 
@@ -206,7 +207,7 @@ public class RegionFinderTests
             	}
             }""";
 
-        RegionFinder.Region root = sut.findRoot(classText);
+        Region root = sut.findRoot(classText);
         assertNotNull(root);
     }
 
@@ -218,7 +219,7 @@ public class RegionFinderTests
             }
         """;
 
-        RegionFinder.Region root = sut.findRoot(classText);
+        Region root = sut.findRoot(classText);
         assertNotNull(root);
     }
 
@@ -263,7 +264,7 @@ public class RegionFinderTests
                 }
             }""";
 
-        RegionFinder.Region root = sut.findRoot(classText);
+        Region root = sut.findRoot(classText);
         assertNotNull(root);
     }
 
@@ -335,7 +336,7 @@ public class RegionFinderTests
             	void notify(final INotification notification);
             }""";
 
-        RegionFinder.Region root = sut.findRoot(classText);
+        Region root = sut.findRoot(classText);
         assertNotNull(root);
     }
 
@@ -386,7 +387,7 @@ public class RegionFinderTests
             	IServerConfiguration getServer();
             }""";
 
-        RegionFinder.Region root = sut.findRoot(classText);
+        Region root = sut.findRoot(classText);
         assertNotNull(root);
     }
 
@@ -420,7 +421,7 @@ public class RegionFinderTests
             	boolean isValidExplosionDefinitionClass(final Class<?> explosionDefinitionClass);
             }""";
 
-        RegionFinder.Region root = sut.findRoot(classText);
+        Region root = sut.findRoot(classText);
         assertNotNull(root);
     }
 
@@ -637,7 +638,7 @@ public class RegionFinderTests
 
         final int lineCount = classText.split("\n").length;
 
-        final RegionFinder.Region root = sut.findRoot(classText);
+        final Region root = sut.findRoot(classText);
         assertNotNull(root);
 
         for (int i = 0; i < lineCount; i++)
@@ -848,7 +849,7 @@ public class RegionFinderTests
 
         int lineCount = classText.split("\n").length;
 
-        final RegionFinder.Region root = sut.findRoot(classText);
+        final Region root = sut.findRoot(classText);
         assertNotNull(root);
 
         for (int i = 0; i < lineCount; i++)
@@ -998,7 +999,7 @@ public class RegionFinderTests
                     }
                 }""".replace("    ", "\t");
 
-        final RegionFinder.Region root = sut.findRoot(classText);
+        final Region root = sut.findRoot(classText);
         assertNotNull(root);
 
         final String[] lines = classText.split("\n");
@@ -1033,7 +1034,7 @@ public class RegionFinderTests
                 	};
                 }""".replace("    ", "\t");
 
-        final RegionFinder.Region root = sut.findRoot(classText);
+        final Region root = sut.findRoot(classText);
         assertNotNull(root);
 
         final String[] lines = classText.split("\n");
@@ -1046,6 +1047,81 @@ public class RegionFinderTests
             var depth = root.regionDepthAtStartOfLine(i, reasons);
 
             calculatedDepthLines[i] = "\t".repeat(depth) + lines[i].trim();
+            depthReasonsList.add(reasons);
+        }
+
+        final String formatResult = String.join("\n", calculatedDepthLines).trim();
+        assertEquals(classText, formatResult);
+    }
+
+    @Test
+    public void regionFinderHandlesInnerEnumsWithoutSemiColon() {
+        String classText = """
+                package mod.chiselsandbits.api.item.click;
+                
+                /**
+                 * Represents the continuous processing state of a click interaction.
+                 */
+                public class ClickProcessingState {
+                    /**
+                     * The click was successfully processed, and not further processing is needed.
+                     */
+                    public static final ClickProcessingState ALLOW = new ClickProcessingState(true, ProcessingResult.ALLOW);
+                    
+                    /**
+                     * The processing result of the click interaction.
+                     */
+                	public enum ProcessingResult
+                    {
+                        /**
+                         * Deny the further processing of the interaction.
+                         */
+                		DENY,
+                		/**
+                		 * Continue the further processing of the interaction.
+                		 * This state did not consume the interaction.
+                		 */
+                		DEFAULT,
+                		/**
+                		 * Continue the further processing of the interaction.
+                		 * This state consumed the interaction.
+                		 */
+                		ALLOW
+                	}
+                }""".replace("    ", "\t");
+
+        runRegionFinderTestOnClass(classText);
+    }
+
+    @Test
+    public void regionFinderHandlesMultiLineParameters() {
+        String classText = """
+                class Example {
+                    List<String> get(
+                            final String first,
+                            final String second
+                    ) {
+                        return List.of(first, second);
+                    }
+                }""".replace("    ", "\t");
+
+        runRegionFinderTestOnClass(classText);
+    }
+
+    private void runRegionFinderTestOnClass(final String classText) {
+        final Region root = sut.findRoot(classText);
+        assertNotNull(root);
+
+        final String[] lines = classText.split("\n");
+        final String[] calculatedDepthLines = new String[lines.length];
+        final List<List<String>> depthReasonsList = new ArrayList<>();
+
+        for (int i = 0; i < lines.length; i++)
+        {
+            var reasons = new ArrayList<String>();
+            var depth = root.regionDepthAtStartOfLine(i, reasons);
+
+            calculatedDepthLines[i] = "\t".repeat(depth) + lines[i].replace("\t", "");
             depthReasonsList.add(reasons);
         }
 

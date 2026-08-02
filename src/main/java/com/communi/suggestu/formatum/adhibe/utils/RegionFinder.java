@@ -4,12 +4,10 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 
@@ -29,380 +27,6 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 	public enum DebugMode {
 		Off,
 		RegionDepthTracking
-	}
-
-	public record RegionOffset(
-			int totalCharacterOffset,
-			int lineOffset,
-			int inLineOffset) {
-
-		private static int calculateLineOffset(String content, int totalCharacterOffset) {
-            if (totalCharacterOffset == 0) {
-                return 0;
-            }
-
-			if (totalCharacterOffset == content.length()) {
-				var contentLineCount = content.split("\n").length;
-                if (content.endsWith("\n")) {
-                    return contentLineCount;
-                }
-
-				return contentLineCount - 1;
-			}
-
-			var preContent = content.substring(0, totalCharacterOffset);
-			var lastIndexOfNewLine = preContent.lastIndexOf('\n');
-            if (lastIndexOfNewLine < 0) {
-                return 0;
-            }
-
-			int contentLineCount = (int) preContent.lines().count();
-			if (preContent.endsWith("\n")) {
-				return contentLineCount;
-			}
-
-			return contentLineCount - 1;
-		}
-
-		private static int calculateInLineOffset(String content, int totalCharacterOffset) {
-            if (totalCharacterOffset == 0) {
-                return 0;
-            }
-
-			if (totalCharacterOffset == content.length()) {
-				if (!content.contains("\n")) {
-					return content.length() - 1;
-				}
-			}
-
-			var preContent = content.substring(0, totalCharacterOffset);
-			var lastIndexOfNewLine = preContent.lastIndexOf('\n');
-            if (lastIndexOfNewLine < 0) {
-                return totalCharacterOffset;
-            }
-
-			var linePreContent = preContent.substring(lastIndexOfNewLine + 1);
-			return linePreContent.length();
-		}
-
-		public RegionOffset(String content, int totalCharacterOffset) {
-			this(totalCharacterOffset, calculateLineOffset(content, totalCharacterOffset), calculateInLineOffset(content, totalCharacterOffset));
-		}
-	}
-
-	private static String[] splitLinesPreservingTrailingNewLines(String content) {
-		var linesStream = content.lines();
-		if (content.endsWith("\n")) {
-			linesStream = Stream.concat(linesStream, Stream.of(""));
-		}
-
-		return linesStream.toArray(String[]::new);
-	}
-
-	public record Region(
-			Region[] children,
-			boolean isParameterBlock,
-			boolean isCodeBlock,
-			boolean isArrayInitializer,
-			boolean isStatement,
-			boolean isControl,
-			boolean isAnonymousClass,
-			boolean isLambda,
-			String content,
-			String[] lines,
-			RegionOffset start,
-			RegionOffset end,
-			DebugMode debugMode) {
-
-		public Region(
-				final Region[] children,
-				final boolean isParameterBlock,
-				final boolean isCodeBlock,
-				final boolean isArrayInitializer,
-				final boolean isStatement,
-				final boolean isControl,
-				final boolean isAnonymousClass,
-				final boolean isLambda,
-				final String content,
-				final RegionOffset start,
-				final RegionOffset end,
-				final DebugMode debugMode) {
-			this(
-					children,
-					isParameterBlock,
-					isCodeBlock,
-					isArrayInitializer,
-					isStatement,
-					isControl,
-					isAnonymousClass,
-					isLambda,
-					content,
-					splitLinesPreservingTrailingNewLines(content),
-					start,
-					end,
-					debugMode
-			);
-		}
-
-		private boolean hasMultipleParameterChildren() {
-			return Arrays.stream(children())
-					.filter(Region::isParameterBlock)
-					.count() > 1;
-		}
-
-		private boolean isMultiLineBrokenAssignmentStatement() {
-			var indexOfAssignmentOperator = content().indexOf("=");
-			//TODO: Handle comparison operators which contain "="
-            if (indexOfAssignmentOperator == -1) {
-                return false;
-            }
-
-            if (!isStatement()) {
-                return false;
-            }
-
-            if (!isMultiLine()) {
-                return false;
-            }
-
-			return Arrays.stream(children())
-					.filter(Region::isParameterBlock)
-					.filter(region -> region.start().lineOffset() != start().lineOffset() ||
-							region.end().lineOffset() != end().lineOffset())
-					.findFirst()
-					.map(r -> r.start().totalCharacterOffset() > indexOfAssignmentOperator + start().totalCharacterOffset())
-					.orElse(false);
-		}
-
-		private boolean hasAssignmentCoveringParameterBlock() {
-			return Arrays.stream(this.children())
-					.filter(Region::isParameterBlock)
-					.anyMatch(region -> region.start().lineOffset() == this.start().lineOffset() &&
-							region.end().lineOffset() == this.end().lineOffset());
-		}
-
-		private boolean isMultiLineAssignmentStatementSplitOnOperator() {
-			return lines()[0].trim().endsWith("=") && isMultiLineBrokenAssignmentStatement();
-		}
-
-		private boolean isMultiLineMethodStatement() {
-			return isStatement() && hasMultipleParameterChildren() && isMultiLine();
-		}
-
-		private int inLineStartOfLineIndex(int lineIndex) {
-			lineIndex -= start.lineOffset();
-			var line = content.split("\n")[lineIndex];
-			return line.length() - line.trim().length();
-		}
-
-		public int regionDepthAtStartOfLine(final int lineIndex) {
-			return regionDepthAtStartOfLine(lineIndex, new ArrayList<>());
-		}
-
-		public int regionDepthAtStartOfLine(final int lineIndex, List<String> depthReasons) {
-			String line = content.split("\n")[lineIndex - start().lineOffset()];
-			if (line.trim().isEmpty()) {
-				return 0;
-			}
-
-			var inLineStartOfLineIndex = inLineStartOfLineIndex(lineIndex);
-
-			var depth = 0;
-
-			//Check all entries to the target
-			List<Region> chain = parentalRegionChain(lineIndex, inLineStartOfLineIndex);
-			for (int i = 0; i < chain.size(); i++) {
-				final Region previous = i != 0 ? chain.get(i - 1) : null;
-				final Region region = chain.get(i);
-				final Region next = i < (chain.size() - 1) ? chain.get(i + 1) : null;
-				final Region secondNext = i < (chain.size() - 2) ? chain.get(i + 2) : null;
-
-				//If we are a parameter block, bump by two
-				if (region.isParameterBlock()) {
-					if (next == null || !next.isCodeBlock() || next.start().lineOffset() != region.start().lineOffset()) {
-						//We do not apply parameter indentation if it is closing operands only.
-						if (next != null || region.isNotClosingOperandsOnly(lineIndex)) {
-							depth++;
-							if (debugMode == DebugMode.RegionDepthTracking) {
-								depthReasons.add("Parameter block depth increase 1");
-							}
-							depth++;
-							if (debugMode == DebugMode.RegionDepthTracking) {
-								depthReasons.add("Parameter block depth increase 2");
-							}
-						}
-					}
-				}
-
-				//We are in a assignment continuation
-				if (region.isMultiLineBrokenAssignmentStatement()
-						&& (previous == null || !previous.isParameterBlock())) {
-					//We only apply statement depth if we are not just closing operands only on the line and
-					//when we are not an assignment that is covered by the same parameter statement entirely.
-					if (region.isNotClosingOperandsOnly(lineIndex) &&
-							!region.hasAssignmentCoveringParameterBlock() &&
-							(next == null || !next.isAnonymousClass())) {
-						var inRegionLineOffset = region.inRegionLineOffset(lineIndex);
-						if (inRegionLineOffset > 0) {
-							depth++;
-							if (debugMode == DebugMode.RegionDepthTracking) {
-								depthReasons.add("Multi-line broken assignment continuation depth increase 1");
-							}
-							depth++;
-							if (debugMode == DebugMode.RegionDepthTracking) {
-								depthReasons.add("Multi-line broken assignment continuation depth increase 2");
-							}
-						}
-
-						if (region.isMultiLineAssignmentStatementSplitOnOperator() && inRegionLineOffset > 1) {
-							depth++;
-							if (debugMode == DebugMode.RegionDepthTracking) {
-								depthReasons.add("Multi-line assignment split on operator depth increase");
-							}
-						}
-					}
-				}
-				//We are in a statement continuation -> bump by at least one
-				else if (region.isMultiLineMethodStatement()
-						&& (previous == null || !previous.isParameterBlock())
-						&& (!isLambdaParameterStartingOnSameLine(region, next, secondNext))
-						&& !region.isStart(lineIndex)) {
-					depth++;
-					if (debugMode == DebugMode.RegionDepthTracking) {
-						depthReasons.add("Multi-line method statement continuation depth increase 1");
-					}
-					depth++;
-					if (debugMode == DebugMode.RegionDepthTracking) {
-						depthReasons.add("Multi-line method statement continuation depth increase 2");
-					}
-				}
-
-				//Any code block we are in also gets us one
-				if (region.isCodeBlock() && !region.isIsolatedStartOrEndOperand(lineIndex)) {
-					depth++;
-					if (debugMode == DebugMode.RegionDepthTracking) {
-						depthReasons.add("Code block depth increase");
-					}
-				}
-			}
-
-			return depth;
-		}
-
-		private boolean isLambdaParameterStartingOnSameLine(final Region region, final Region target, final Region next) {
-			if (!isLambdaParameter(target, next))
-				return false;
-
-			//We know next is not null, that is a requisite from the isLambdaParameter
-			return next.start().lineOffset() == region.start().lineOffset();
-		}
-
-		private boolean isLambdaParameter(final Region target, final Region next) {
-			//A lambda in a parameter.
-			return target != null && target.isParameterBlock() &&
-					next != null && next.isCodeBlock() && next.isLambda();
-		}
-
-		private static final Pattern NOT_CLOSING_OPERANDS = Pattern.compile("[^});\\]]");
-		private static final Pattern CLOSING_OPERANDS     = Pattern.compile("[});\\]]");
-
-		private boolean isNotClosingOperandsOnly(final int lineIndex) {
-			var contentLine = getContentLine(lineIndex);
-			if (contentLine.trim().isEmpty()) {
-				return true;
-			}
-
-			//This line is not allowed to match closing operands.
-			return !CLOSING_OPERANDS.matcher(contentLine).find() || NOT_CLOSING_OPERANDS.matcher(contentLine).find();
-		}
-
-		private String getContentLine(final int lineIndex) {
-			var regionLineIndex = lineIndex - start().lineOffset();
-			if (regionLineIndex < 0) {
-				throw new IllegalArgumentException(
-						"The given global line index: " + lineIndex + " targets a line which is before this regions start line: " + start().lineOffset());
-			}
-
-			if (regionLineIndex >= lines().length) {
-				throw new IllegalArgumentException(
-						"The given global line index: " + lineIndex + " targets a line which is after this regions end line: " + end().lineOffset() + " with line count: "
-								+ lines().length + " and start line: " + start().lineOffset());
-			}
-
-			return lines()[regionLineIndex].trim();
-		}
-
-		private boolean isMultiLine() {
-			return start().lineOffset() != end().lineOffset();
-		}
-
-		private boolean isStart(int lineIndex) {
-			return start().lineOffset() == lineIndex;
-		}
-
-		private int inRegionLineOffset(int lineIndex) {
-			return lineIndex - start().lineOffset();
-		}
-
-		private List<Region> parentalRegionChain(final int lineIndex, final int firstCharacterIndex) {
-			var chain = new ArrayList<Region>();
-			if (!contains(lineIndex, firstCharacterIndex)) {
-				return chain;
-			}
-
-			chain.add(this);
-
-			for (final Region child : children()) {
-				if (child.contains(lineIndex, firstCharacterIndex)) {
-					chain.addAll(child.parentalRegionChain(lineIndex, firstCharacterIndex));
-					break;
-				}
-			}
-
-			return chain;
-		}
-
-		private boolean contains(final int lineIndex, final int firstCharacterIndex) {
-            if (start().lineOffset() > lineIndex) {
-                return false;
-            }
-
-            if (end().lineOffset() < lineIndex) {
-                return false;
-            }
-
-            if (start().lineOffset() == lineIndex && start().inLineOffset() > firstCharacterIndex) {
-                return false;
-            }
-
-            if (end().lineOffset() == lineIndex && end().inLineOffset() < firstCharacterIndex) {
-                return false;
-            }
-
-			return true;
-		}
-
-		private boolean isIsolatedStartOrEndOperand(final int lineIndex) {
-			if (lineIndex == start().lineOffset()) {
-				return isIsolatedStartOpeningOperand();
-			}
-
-			if (lineIndex == end().lineOffset()) {
-				return isIsolatedEndClosingOperand();
-			}
-
-			return false;
-		}
-
-		private boolean isIsolatedEndClosingOperand() {
-			final var endLine = lines()[lines.length - 1].trim();
-			return endLine.equals("}") || endLine.equals(")") || endLine.equals("]");
-		}
-
-		private boolean isIsolatedStartOpeningOperand() {
-			final var startLine = lines()[0].trim();
-			return startLine.equals("{") || startLine.equals("(") || startLine.equals("[");
-		}
 	}
 
 	private record BracedRegionWrapper(
@@ -513,41 +137,65 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				nextBraceStartsLambda = false;
 			}
 
+			//Determine whether we are in the new operator statement.
 			if (isWhitespace && !insideNewStatement && i > 3 && content.startsWith("new ", i - 3)) {
 				insideNewStatement = true;
 			}
 			else if (isWhitespace && i > 2 && content.charAt(i - 2) == '(' && content.charAt(i - 1) == ')' && insideNewStatement) {
+				//We are in a new statement, and we discovered the pre-conditions for an anonymous class.
 				nextBraceStartsAnonymousClass = true;
 				insideNewStatement = false;
 			}
 			else if (isWhitespace && insideNewStatement) {
+				//Lost the new statement conditions -> Object creation.
 				insideNewStatement = false;
 			}
 
-			// Lambda operator
+			// Determine where a lambda starts
 			if (c == '>' && previousNoneWhitespaceC != null && previousNoneWhitespaceC == '-') {
 				nextBraceStartsLambda = true;
 			}
 
+			// Determine where the annotations start
 			if (c == '@' && annotationStart == null) {
 				annotationStart = i;
 			}
 
+			// Closing of a code block.
 			if (c == '}') {
                 if (bracedRegionStack.isEmpty()) {
+					//No open code block -> Illegal state, if we close it we must have it opened.
                     throw new IllegalArgumentException("Found closing brace without opening companion!");
                 }
 
+				//Grab the opening status from the stack.
 				var bracedRegion = bracedRegionStack.pop();
 				int bracedRegionStartIndex = bracedRegion.index();
+
+				//We track this directly because we need to handle the statement logic inside it.
 				boolean isLambdaOrAnonymousClass = bracedRegion.isLambda() || bracedRegion.isAnonymousClass();
 
+				//We are ending a codeblock -> This is an implicit end to a statement as well.
+				//If we did not have a statement open for some reason, check the current statement stack, whether that starts at the same place as our
+				//current codeblock, if so, then close that statement, but mark that we pre-popped the statement.
+				//This happens regularly for enums, as they do not need to terminate with a ; so the statement needs to be processed!
 				boolean performedStatementTerminationPrePop = false;
 				if (statementStart == null && !statementStack.isEmpty() && statementStack.peek().codeBlockStart() == bracedRegionStartIndex) {
 					statementStart = statementStack.pop().start();
 					performedStatementTerminationPrePop = true;
 				}
 
+				//We have a not closed statement (so no ; before the }, excluding whitespaces)
+				if (statementStart != null && !isLambdaOrAnonymousClass) {
+					//Close the statement first, then handle that.
+					Region statement = createStatementLikeRegion(content, currentChildren, statementStart, i);
+
+					statementStart = null;
+					currentChildren = childrenStack.pop();
+					currentChildren.add(statement);
+				}
+
+				//Create the region.
 				var start = new RegionOffset(content, bracedRegionStartIndex);
 				var end = new RegionOffset(content, i + 1);
 				var regionContent = content.substring(start.totalCharacterOffset(), end.totalCharacterOffset());
@@ -570,14 +218,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				currentChildren = childrenStack.pop();
 				currentChildren.add(region);
 
-				if (statementStart != null && !isLambdaOrAnonymousClass) {
-					Region statement = createStatementLikeRegion(content, currentChildren, statementStart, i);
-
-					statementStart = null;
-					currentChildren = childrenStack.pop();
-					currentChildren.add(statement);
-				}
-
+				//UNSURE: this feels flaky and I can't remember why we need it, but it seem to pass tests, so it covers some regresssions.
                 if (!performedStatementTerminationPrePop) {
                     statementStart = statementStack.isEmpty() ? null : statementStack.pop().start();
                 }
@@ -585,28 +226,35 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				continue;
 			}
 
+			//Start a new code block.
 			if (c == '{') {
 				bracedRegionStack.push(new BracedRegionWrapper(i, nextBraceStartsLambda, nextBraceStartsAnonymousClass));
 				childrenStack.push(currentChildren);
 				currentChildren = new ArrayList<>();
 
+				//Reset state trackers.
 				nextBraceStartsLambda = false;
 				nextBraceStartsAnonymousClass = false;
 
+				//A new code block, also means a new statement start!
 				statementStack.push(new StatementStartWrapper(statementStart, i));
 				statementStart = null;
 				continue;
 			}
 
+			//Start of a parameter block.
 			if (c == '(') {
+				//Double check the previous none whitespace character, as it might like an inline pair of brackets to handle if switches etc.
 				boolean isParameterBlock = previousNoneWhitespaceC != null &&
 						previousNoneWhitespaceC != ',' &&
 						previousNoneWhitespaceC != '=' &&
 						previousNoneWhitespaceC != '(';
 
+				//Create and pus the parameter region!
 				parameterizedRegionStack.push(new ParameterRegionStartInfo(i, isParameterBlock, annotationStart));
 				annotationStart = null;
 
+				//Handle the parameter block
 				if (isParameterBlock) {
 					childrenStack.push(currentChildren);
 					currentChildren = new ArrayList<>();
@@ -614,14 +262,17 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				}
 			}
 
+			//Closing of the parameter block.
 			if (c == ')') {
                 if (parameterizedRegionStack.isEmpty()) {
                     throw new IllegalArgumentException("Found closing parameter declaration without opening companion!");
                 }
 
+				//Pop it of.
 				var parameterInfo = parameterizedRegionStack.pop();
 
 				if (parameterInfo.isParameter()) {
+					//if it is a parameter block, then handle that directly.
 					var start = new RegionOffset(content, parameterInfo.index());
 					var end = new RegionOffset(content, i + 1);
 					var regionContent = content.substring(start.totalCharacterOffset(), end.totalCharacterOffset());
@@ -642,6 +293,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 					);
 
 					if (parameterInfo.annotationStart() != null) {
+						//If it is also an annotation block, then handle that afterwards, as the annotation wraps its parameter block.
 						start = new RegionOffset(content, parameterInfo.annotationStart());
 						end = new RegionOffset(content, i + 1);
 						regionContent = content.substring(start.totalCharacterOffset(), end.totalCharacterOffset());
@@ -661,6 +313,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 								debugMode()
 						);
 
+						//Handle the statement information inside the annotation block.
 						if (statementStart != null && statementStart.equals(parameterInfo.annotationStart())) {
 							statementStart = null;
 							currentChildren = childrenStack.pop();
@@ -668,12 +321,14 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 						}
 					}
 
+					//Pop the statement.
 					currentChildren = childrenStack.pop();
 					currentChildren.add(region);
 					continue;
 				}
 			}
 
+			//Handle array start.
 			if (c == '[') {
 				arrayInitializerStack.push(i);
 				childrenStack.push(currentChildren);
@@ -681,15 +336,18 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				continue;
 			}
 
+			//Handle array closure.
 			if (c == ']') {
                 if (arrayInitializerStack.isEmpty()) {
                     throw new IllegalArgumentException("Found closing array initializer without opening companion!");
                 }
 
+				//Pop the array information.
 				var start = new RegionOffset(content, arrayInitializerStack.pop());
 				var end = new RegionOffset(content, i + 1);
 				var regionContent = content.substring(start.totalCharacterOffset(), end.totalCharacterOffset());
 
+				//Create the region.
 				var region = new Region(
 						currentChildren.toArray(new Region[0]),
 						false,
@@ -710,13 +368,16 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				continue;
 			}
 
+			//In-Line statement end.
 			if (c == ';') {
+				//Code outside of the root code block is not relevant here, (package and import statements).
 				if (statementStart == null) {
 					//We are not interested in regions outside of object structs.
                     if (bracedRegionStack.isEmpty()) {
                         continue;
                     }
 
+					//Helps with debugging.
                     if (parseMode().throwsOnUnopenedStatements()) {
                         throw new IllegalStateException("Found closing parameter declaration without opening companion!");
                     }
@@ -724,6 +385,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 					continue;
 				}
 
+				//Create the region
 				Region region = createStatementLikeRegion(content, currentChildren, statementStart, i);
 
 				statementStart = null;
@@ -732,6 +394,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				continue;
 			}
 
+			//Start a statement when we are in the first block.
 			if (statementStart == null && !bracedRegionStack.isEmpty() && !String.valueOf(c).trim().isEmpty()) {
 				statementStart = i;
 				childrenStack.push(currentChildren);
@@ -747,6 +410,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
             );
         }
 
+		//Validate that we properly processed the entire code.
         if (!parameterizedRegionStack.isEmpty()) {
             throw new IllegalArgumentException("Found parameter declaration without opening companion!");
         }
@@ -762,6 +426,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
             );
         }
 
+		//Return the root.
 		return new Region(
 				currentChildren.toArray(new Region[0]),
 				false,
