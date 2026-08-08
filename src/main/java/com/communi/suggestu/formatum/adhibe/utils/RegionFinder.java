@@ -186,7 +186,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				}
 
 				//We have a not closed statement (so no ; before the }, excluding whitespaces)
-				if (statementStart != null && !isLambdaOrAnonymousClass) {
+				if (statementStart != null && !isLambdaOrAnonymousClass && statementStart > bracedRegionStartIndex) {
 					//Close the statement first, then handle that.
 					Region statement = createStatementLikeRegion(content, currentChildren, statementStart, i);
 

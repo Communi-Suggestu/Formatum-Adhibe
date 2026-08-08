@@ -11,9 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class RegionFinderTests
 {
@@ -1054,8 +1052,71 @@ public class RegionFinderTests
         assertEquals(classText, formatResult);
     }
 
+
+
+
+    @Test
+    public void regionFinderHandlesEnumsWithoutSemiColon() {
+        String classText = """
+                public enum ClickProcessingState {
+                    DENY,
+                    ACCEPT
+                }""".replace("    ", "\t");
+
+        var root = runRegionFinderTestOnClass(classText);
+
+        assertEquals(1, root.children().length);
+
+        var enumContentCodeBlock = root.children()[0];
+
+        assertTrue(enumContentCodeBlock.isCodeBlock());
+        assertEquals(1, enumContentCodeBlock.children().length);
+
+        var enumStatement = enumContentCodeBlock.children()[0];
+
+        assertTrue(enumStatement.isStatement());
+        assertEquals(0, enumStatement.children().length);
+    }
+
+
     @Test
     public void regionFinderHandlesInnerEnumsWithoutSemiColon() {
+        String classText = """
+                public class ClickProcessingState {
+                    public enum ProcessingResult
+                    {
+                        DENY,
+                		ALLOW
+                	}
+                }""".replace("    ", "\t");
+
+        var root = runRegionFinderTestOnClass(classText);
+
+        assertEquals(1, root.children().length);
+
+        var outerClassContentCodeBlock = root.children()[0];
+
+        assertTrue(outerClassContentCodeBlock.isCodeBlock());
+        assertEquals(1, outerClassContentCodeBlock.children().length);
+
+        var enumTypeStatement = outerClassContentCodeBlock.children()[0];
+
+        assertTrue(enumTypeStatement.isStatement());
+        assertEquals(1, enumTypeStatement.children().length);
+
+        var enumCodeBlock = enumTypeStatement.children()[0];
+
+        assertTrue(enumCodeBlock.isCodeBlock());
+        assertEquals(1, enumCodeBlock.children().length);
+
+        var enumStatement = enumCodeBlock.children()[0];
+
+        assertTrue(enumStatement.isStatement());
+        assertEquals(0, enumStatement.children().length);
+    }
+
+    @Test
+    public void regionFinderHandlesComplexInnerEnumsWithoutSemiColon() {
         String classText = """
                 package mod.chiselsandbits.api.item.click;
                 
@@ -1096,19 +1157,18 @@ public class RegionFinderTests
     @Test
     public void regionFinderHandlesMultiLineParameters() {
         String classText = """
-                class Example {
-                    List<String> get(
-                            final String first,
-                            final String second
+                class E {
+                    void get(
+                            S f
                     ) {
-                        return List.of(first, second);
+                        return List.of(f);
                     }
                 }""".replace("    ", "\t");
 
         runRegionFinderTestOnClass(classText);
     }
 
-    private void runRegionFinderTestOnClass(final String classText) {
+    private Region runRegionFinderTestOnClass(final String classText) {
         final Region root = sut.findRoot(classText);
         assertNotNull(root);
 
@@ -1127,5 +1187,7 @@ public class RegionFinderTests
 
         final String formatResult = String.join("\n", calculatedDepthLines).trim();
         assertEquals(classText, formatResult);
+
+        return root;
     }
 }

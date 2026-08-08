@@ -288,11 +288,14 @@ public record Region(
 			return false;
 		}
 
+		// Only check start column on the actual start line.
 		if (start().lineOffset() == lineIndex && start().inLineOffset() > firstCharacterIndex) {
 			return false;
 		}
 
-		if (end().lineOffset() == lineIndex && end().inLineOffset() < firstCharacterIndex) {
+		// For multi-line regions, only check end column when we're actually on the end line.
+		// Intermediate lines are fully contained regardless of their column position.
+		if (end().lineOffset() == start().lineOffset() && end().inLineOffset() < firstCharacterIndex) {
 			return false;
 		}
 
