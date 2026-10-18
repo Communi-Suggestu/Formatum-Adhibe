@@ -135,7 +135,7 @@ public record Region(
 
 			//If we are a parameter block, bump by two
 			if (region.isParameterBlock()) {
-				if (next == null || !next.isCodeBlock() || next.start().lineOffset() != region.start().lineOffset()) {
+				if (next == null || !(next.isCodeBlock() || next.isParameterBlock()) || next.start().lineOffset() != region.start().lineOffset()) {
 					//We do not apply parameter indentation if it is closing operands only.
 					if (next != null || region.isNotClosingOperandsOnly(lineIndex)) {
 						depth++;
@@ -153,9 +153,9 @@ public record Region(
 			//We are in a assignment continuation
 			if (region.isMultiLineBrokenAssignmentStatement()
 					&& (previous == null || !previous.isParameterBlock())) {
-				//We only apply statement depth if we are not just closing operands only on the line and
+				//We only apply statement depth if we are not just closing operands only on the last line and
 				//when we are not an assignment that is covered by the same parameter statement entirely.
-				if (region.isNotClosingOperandsOnly(lineIndex) &&
+				if ((region.end().lineOffset() != lineIndex || region.isNotClosingOperandsOnly(lineIndex)) &&
 						!region.hasAssignmentCoveringParameterBlock() &&
 						(next == null || !next.isAnonymousClass())) {
 					var inRegionLineOffset = region.inRegionLineOffset(lineIndex);

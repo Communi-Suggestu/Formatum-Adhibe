@@ -943,17 +943,7 @@ public class RegionFinderTests
                 }
                 """;
 
-        var lines = classText.lines().toList();
-        var root = sut.findRoot(classText);
-
-        for (int i = 0; i < lines.size(); i++) {
-            var indent = root.regionDepthAtStartOfLine(i);
-            var line = lines.get(i).replace("   ", "\t");
-
-            var indentedLine = "\t".repeat(indent) + line.replace("\t", "").replace("   ","");
-
-            assertEquals(line, indentedLine, "Line with index:" + i + " does not have the correct indentation.");
-        }
+        runRegionFinderTestOnClass(classText);
     }
 
     @Test
@@ -1021,35 +1011,18 @@ public class RegionFinderTests
     public void regionFinderHandlesStaticAnonymousInnerClassesAssignedToStaticField() {
         String classText = """
                 public interface CBStreamCodecs {
-                	StreamCodec<FriendlyByteBuf, long[]> LONG_ARRAY = new StreamCodec<>() {
-                        public long [] decode(FriendlyByteBuf buffer) {
-                            return buffer.readLongArray();
+                	StreamCodec<FriendlyByteBuf, long> LONG_ARRAY = new StreamCodec<>() {
+                        public long decode(FriendlyByteBuf buffer) {
+                            return buffer.readLong();
                 		}
                 
-                        public void encode(FriendlyByteBuf buffer, long [] payload) {
-                            buffer.writeLongArray(payload);
+                        public void encode(FriendlyByteBuf buffer, long payload) {
+                            buffer.writeLong(payload);
                 		}
                 	};
-                }""".replace("    ", "\t");
+                }""";
 
-        final Region root = sut.findRoot(classText);
-        assertNotNull(root);
-
-        final String[] lines = classText.split("\n");
-        final String[] calculatedDepthLines = new String[lines.length];
-        final List<List<String>> depthReasonsList = new ArrayList<>();
-
-        for (int i = 0; i < lines.length; i++)
-        {
-            var reasons = new ArrayList<String>();
-            var depth = root.regionDepthAtStartOfLine(i, reasons);
-
-            calculatedDepthLines[i] = "\t".repeat(depth) + lines[i].trim();
-            depthReasonsList.add(reasons);
-        }
-
-        final String formatResult = String.join("\n", calculatedDepthLines).trim();
-        assertEquals(classText, formatResult);
+        runRegionFinderTestOnClass(classText);
     }
 
 
@@ -1168,7 +1141,8 @@ public class RegionFinderTests
         runRegionFinderTestOnClass(classText);
     }
 
-    private Region runRegionFinderTestOnClass(final String classText) {
+    private Region runRegionFinderTestOnClass(String classText) {
+        classText = classText.replace("    ", "\t").trim();
         final Region root = sut.findRoot(classText);
         assertNotNull(root);
 
@@ -1181,7 +1155,7 @@ public class RegionFinderTests
             var reasons = new ArrayList<String>();
             var depth = root.regionDepthAtStartOfLine(i, reasons);
 
-            calculatedDepthLines[i] = "\t".repeat(depth) + lines[i].replace("\t", "");
+            calculatedDepthLines[i] = "\t".repeat(depth) + lines[i].replace("\t", "").replace("    ", "");
             depthReasonsList.add(reasons);
         }
 

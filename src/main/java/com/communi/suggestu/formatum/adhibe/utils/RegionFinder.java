@@ -62,7 +62,10 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 		boolean nextBraceStartsAnonymousClass = false;
 		boolean insideNewStatement = false;
 
+		boolean explicitlyClosedLastStatement = false;
+
 		Integer annotationStart = null;
+		Integer previousNoneWhitespaceCharacterIndex = null;
 
 		contentLoop:
 		for (int i = 0; i < content.length(); i++) {
@@ -74,6 +77,7 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				char previous = content.charAt(j);
 				if (String.valueOf(previous).trim().equals(String.valueOf(previous))) {
 					previousNoneWhitespaceC = previous;
+					previousNoneWhitespaceCharacterIndex = j;
 					break;
 				}
 			}
@@ -161,6 +165,10 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				annotationStart = i;
 			}
 
+			if (!isWhitespace && c != '}' && explicitlyClosedLastStatement) {
+				explicitlyClosedLastStatement = false;
+			}
+
 			// Closing of a code block.
 			if (c == '}') {
                 if (bracedRegionStack.isEmpty()) {
@@ -185,15 +193,26 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 					performedStatementTerminationPrePop = true;
 				}
 
-				//We have a not closed statement (so no ; before the }, excluding whitespaces)
-				if (statementStart != null && !isLambdaOrAnonymousClass && statementStart > bracedRegionStartIndex) {
+				//We do not create the statement clause if we are an anoymous class or lambda
+				//We also explicitly skip the statement creation, if we just popped the statement start from the stack, while we just explicitly created the statement already, aka ; before }
+				//Because if we do that, what then happens is that we eagerly close the wrong statement, so we skip that entirely.
+				if (statementStart != null && !isLambdaOrAnonymousClass && !(performedStatementTerminationPrePop && explicitlyClosedLastStatement)) {
+					//Somehow we have a closing statement without an opening character.
+					if (previousNoneWhitespaceCharacterIndex == null) {
+						throw  new IllegalArgumentException("Found ambiguous brace without opening companion!");
+					}
+
 					//Close the statement first, then handle that.
-					Region statement = createStatementLikeRegion(content, currentChildren, statementStart, i);
+					Region statement = createStatementLikeRegion(content, currentChildren, statementStart, previousNoneWhitespaceCharacterIndex);
 
 					statementStart = null;
 					currentChildren = childrenStack.pop();
 					currentChildren.add(statement);
 				}
+
+				//Wether we closed or did not close the statement now explicitly, we are about to leave the code block
+				//So we can clear the explicit code block marker
+				explicitlyClosedLastStatement = false;
 
 				//Create the region.
 				var start = new RegionOffset(content, bracedRegionStartIndex);
@@ -389,13 +408,15 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				Region region = createStatementLikeRegion(content, currentChildren, statementStart, i);
 
 				statementStart = null;
+				explicitlyClosedLastStatement = true;
 				currentChildren = childrenStack.pop();
 				currentChildren.add(region);
 				continue;
 			}
 
 			//Start a statement when we are in the first block.
-			if (statementStart == null && !bracedRegionStack.isEmpty() && !String.valueOf(c).trim().isEmpty()) {
+			//We only create statements, if we are at least 2 deep.
+			if (statementStart == null && bracedRegionStack.size() > 1 && !String.valueOf(c).trim().isEmpty()) {
 				statementStart = i;
 				childrenStack.push(currentChildren);
 				currentChildren = new ArrayList<>();
