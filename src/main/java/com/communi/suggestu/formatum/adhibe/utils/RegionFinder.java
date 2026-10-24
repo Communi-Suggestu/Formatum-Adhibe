@@ -1,27 +1,39 @@
 package com.communi.suggestu.formatum.adhibe.utils;
 
-import org.jspecify.annotations.Nullable;
+import com.sun.source.tree.BlockTree;
+import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.LambdaExpressionTree;
+import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
+import com.sun.source.util.JavacTask;
+import com.sun.source.util.SourcePositions;
+import com.sun.source.util.TreePathScanner;
+import com.sun.source.util.Trees;
 
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaFileObject;
+import javax.tools.SimpleJavaFileObject;
+import javax.tools.ToolProvider;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.net.URI;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
-
 	public enum ParseMode {
-		DEFAULT(false),
-		HARD(true);
-
-		private final boolean throwOnUnopenedStatements;
-
-		ParseMode(final boolean throwOnUnopenedStatements) {this.throwOnUnopenedStatements = throwOnUnopenedStatements;}
-
-		private boolean throwsOnUnopenedStatements() {
-			return throwOnUnopenedStatements;
-		}
+		DEFAULT,
+		HARD
 	}
 
 	public enum DebugMode {
@@ -29,463 +41,231 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 		RegionDepthTracking
 	}
 
-	private record BracedRegionWrapper(
-			int index,
-			boolean isLambda,
-			boolean isAnonymousClass) {}
-
-	private record StatementStartWrapper(
-			@Nullable Integer start,
-			int codeBlockStart) {}
-
-	private record ParameterRegionStartInfo(
-			Integer index,
-			boolean isParameter,
-			@Nullable Integer annotationStart) {}
-
 	public Region findRoot(String content) {
-		boolean inString = false;
-		boolean inChar = false;
-
-		Deque<BracedRegionWrapper> bracedRegionStack = new ArrayDeque<>();
-		Deque<ParameterRegionStartInfo> parameterizedRegionStack = new ArrayDeque<>();
-		Deque<Integer> arrayInitializerStack = new ArrayDeque<>();
-		Deque<StatementStartWrapper> statementStack = new ArrayDeque<>();
-
-		Deque<List<Region>> childrenStack = new ArrayDeque<>();
-		List<Region> currentChildren = new ArrayList<>();
-
-		Integer statementStart = null;
-		Character previousNoneWhitespaceC = null;
-
-		boolean nextBraceStartsLambda = false;
-		boolean nextBraceStartsAnonymousClass = false;
-		boolean insideNewStatement = false;
-
-		boolean explicitlyClosedLastStatement = false;
-
-		Integer annotationStart = null;
-		Integer previousNoneWhitespaceCharacterIndex = null;
-
-		contentLoop:
-		for (int i = 0; i < content.length(); i++) {
-			char c = content.charAt(i);
-			boolean isWhitespace = !String.valueOf(c).trim().equals(String.valueOf(c));
-			String surroundingContent = content.substring(Math.max(i - 4, 0), Math.min(i + 4, content.length() - 1));
-
-			for (int j = i - 1; j > 0; j--) {
-				char previous = content.charAt(j);
-				if (String.valueOf(previous).trim().equals(String.valueOf(previous))) {
-					previousNoneWhitespaceC = previous;
-					previousNoneWhitespaceCharacterIndex = j;
-					break;
-				}
-			}
-
-			char next = i + 1 < content.length() ? content.charAt(i + 1) : '\0';
-			char secondNext = i + 2 < content.length() ? content.charAt(i + 2) : '\0';
-			if (!inString && !inChar && c == '/' && next == '/') {
-				while (c != '\n') {
-					i++;
-					if (i == content.length()) {
-						break contentLoop;
-					}
-
-					c = content.charAt(i);
-				}
-			}
-
-			if (!inString && !inChar && c == '/' && next == '*' && secondNext == '*') {
-				while (!(c == '*' && next == '/')) {
-					i++;
-					if (i == content.length()) {
-						break contentLoop;
-					}
-
-					c = content.charAt(i);
-					next = i + 1 < content.length() ? content.charAt(i + 1) : '\0';
-					secondNext = i + 2 < content.length() ? content.charAt(i + 2) : '\0';
-				}
-
-				i++;
-				continue;
-			}
-
-			if (!inChar && c == '"') {
-				boolean escaped = i > 0 && content.charAt(i - 1) == '\\';
-				if (!escaped) {
-					inString = !inString;
-				}
-				continue;
-			}
-
-			if (!inString && c == '\'') {
-				boolean escaped = i > 0 && content.charAt(i - 1) == '\\';
-				if (!escaped) {
-					inChar = !inChar;
-				}
-				continue;
-			}
-
-			if (inString || inChar) {
-				continue;
-			}
-
-			//Reset anonymous class operator
-			if (nextBraceStartsAnonymousClass && !isWhitespace && c != '{') {
-				nextBraceStartsAnonymousClass = false;
-			}
-
-			//Reset lambda operator
-			if (nextBraceStartsLambda && !isWhitespace && c != '{') {
-				nextBraceStartsLambda = false;
-			}
-
-			//Determine whether we are in the new operator statement.
-			if (isWhitespace && !insideNewStatement && i > 3 && content.startsWith("new ", i - 3)) {
-				insideNewStatement = true;
-			}
-			else if (isWhitespace && i > 2 && content.charAt(i - 2) == '(' && content.charAt(i - 1) == ')' && insideNewStatement) {
-				//We are in a new statement, and we discovered the pre-conditions for an anonymous class.
-				nextBraceStartsAnonymousClass = true;
-				insideNewStatement = false;
-			}
-			else if (isWhitespace && insideNewStatement) {
-				//Lost the new statement conditions -> Object creation.
-				insideNewStatement = false;
-			}
-
-			// Determine where a lambda starts
-			if (c == '>' && previousNoneWhitespaceC != null && previousNoneWhitespaceC == '-') {
-				nextBraceStartsLambda = true;
-			}
-
-			// Determine where the annotations start
-			if (c == '@' && annotationStart == null) {
-				annotationStart = i;
-			}
-
-			if (!isWhitespace && c != '}' && explicitlyClosedLastStatement) {
-				explicitlyClosedLastStatement = false;
-			}
-
-			// Closing of a code block.
-			if (c == '}') {
-                if (bracedRegionStack.isEmpty()) {
-					//No open code block -> Illegal state, if we close it we must have it opened.
-                    throw new IllegalArgumentException("Found closing brace without opening companion!");
-                }
-
-				//Grab the opening status from the stack.
-				var bracedRegion = bracedRegionStack.pop();
-				int bracedRegionStartIndex = bracedRegion.index();
-
-				//We track this directly because we need to handle the statement logic inside it.
-				boolean isLambdaOrAnonymousClass = bracedRegion.isLambda() || bracedRegion.isAnonymousClass();
-
-				//We are ending a codeblock -> This is an implicit end to a statement as well.
-				//If we did not have a statement open for some reason, check the current statement stack, whether that starts at the same place as our
-				//current codeblock, if so, then close that statement, but mark that we pre-popped the statement.
-				//This happens regularly for enums, as they do not need to terminate with a ; so the statement needs to be processed!
-				boolean performedStatementTerminationPrePop = false;
-				if (statementStart == null && !statementStack.isEmpty() && statementStack.peek().codeBlockStart() == bracedRegionStartIndex) {
-					statementStart = statementStack.pop().start();
-					performedStatementTerminationPrePop = true;
-				}
-
-				//We do not create the statement clause if we are an anoymous class or lambda
-				//We also explicitly skip the statement creation, if we just popped the statement start from the stack, while we just explicitly created the statement already, aka ; before }
-				//Because if we do that, what then happens is that we eagerly close the wrong statement, so we skip that entirely.
-				if (statementStart != null && !isLambdaOrAnonymousClass && !(performedStatementTerminationPrePop && explicitlyClosedLastStatement)) {
-					//Somehow we have a closing statement without an opening character.
-					if (previousNoneWhitespaceCharacterIndex == null) {
-						throw  new IllegalArgumentException("Found ambiguous brace without opening companion!");
-					}
-
-					//Close the statement first, then handle that.
-					Region statement = createStatementLikeRegion(content, currentChildren, statementStart, previousNoneWhitespaceCharacterIndex);
-
-					statementStart = null;
-					currentChildren = childrenStack.pop();
-					currentChildren.add(statement);
-				}
-
-				//Wether we closed or did not close the statement now explicitly, we are about to leave the code block
-				//So we can clear the explicit code block marker
-				explicitlyClosedLastStatement = false;
-
-				//Create the region.
-				var start = new RegionOffset(content, bracedRegionStartIndex);
-				var end = new RegionOffset(content, i + 1);
-				var regionContent = content.substring(start.totalCharacterOffset(), end.totalCharacterOffset());
-
-				var region = new Region(
-						currentChildren.toArray(new Region[0]),
-						false,
-						true,
-						false,
-						false,
-						false,
-						bracedRegion.isAnonymousClass(),
-						bracedRegion.isLambda(),
-						regionContent,
-						start,
-						end,
-						debugMode()
-				);
-
-				currentChildren = childrenStack.pop();
-				currentChildren.add(region);
-
-				//UNSURE: this feels flaky and I can't remember why we need it, but it seem to pass tests, so it covers some regresssions.
-                if (!performedStatementTerminationPrePop) {
-                    statementStart = statementStack.isEmpty() ? null : statementStack.pop().start();
-                }
-
-				continue;
-			}
-
-			//Start a new code block.
-			if (c == '{') {
-				bracedRegionStack.push(new BracedRegionWrapper(i, nextBraceStartsLambda, nextBraceStartsAnonymousClass));
-				childrenStack.push(currentChildren);
-				currentChildren = new ArrayList<>();
-
-				//Reset state trackers.
-				nextBraceStartsLambda = false;
-				nextBraceStartsAnonymousClass = false;
-
-				//A new code block, also means a new statement start!
-				statementStack.push(new StatementStartWrapper(statementStart, i));
-				statementStart = null;
-				continue;
-			}
-
-			//Start of a parameter block.
-			if (c == '(') {
-				//Double check the previous none whitespace character, as it might like an inline pair of brackets to handle if switches etc.
-				boolean isParameterBlock = previousNoneWhitespaceC != null &&
-						previousNoneWhitespaceC != ',' &&
-						previousNoneWhitespaceC != '=' &&
-						previousNoneWhitespaceC != '(';
-
-				//Create and pus the parameter region!
-				parameterizedRegionStack.push(new ParameterRegionStartInfo(i, isParameterBlock, annotationStart));
-				annotationStart = null;
-
-				//Handle the parameter block
-				if (isParameterBlock) {
-					childrenStack.push(currentChildren);
-					currentChildren = new ArrayList<>();
-					continue;
-				}
-			}
-
-			//Closing of the parameter block.
-			if (c == ')') {
-                if (parameterizedRegionStack.isEmpty()) {
-                    throw new IllegalArgumentException("Found closing parameter declaration without opening companion!");
-                }
-
-				//Pop it of.
-				var parameterInfo = parameterizedRegionStack.pop();
-
-				if (parameterInfo.isParameter()) {
-					//if it is a parameter block, then handle that directly.
-					var start = new RegionOffset(content, parameterInfo.index());
-					var end = new RegionOffset(content, i + 1);
-					var regionContent = content.substring(start.totalCharacterOffset(), end.totalCharacterOffset());
-
-					var region = new Region(
-							currentChildren.toArray(new Region[0]),
-							true,
-							false,
-							false,
-							false,
-							false,
-							false,
-							false,
-							regionContent,
-							start,
-							end,
-							debugMode()
-					);
-
-					if (parameterInfo.annotationStart() != null) {
-						//If it is also an annotation block, then handle that afterwards, as the annotation wraps its parameter block.
-						start = new RegionOffset(content, parameterInfo.annotationStart());
-						end = new RegionOffset(content, i + 1);
-						regionContent = content.substring(start.totalCharacterOffset(), end.totalCharacterOffset());
-
-						region = new Region(
-								new Region[]{region},
-								false,
-								false,
-								false,
-								true,
-								false,
-								false,
-								false,
-								regionContent,
-								start,
-								end,
-								debugMode()
-						);
-
-						//Handle the statement information inside the annotation block.
-						if (statementStart != null && statementStart.equals(parameterInfo.annotationStart())) {
-							statementStart = null;
-							currentChildren = childrenStack.pop();
-							currentChildren.add(region);
-						}
-					}
-
-					//Pop the statement.
-					currentChildren = childrenStack.pop();
-					currentChildren.add(region);
-					continue;
-				}
-			}
-
-			//Handle array start.
-			if (c == '[') {
-				arrayInitializerStack.push(i);
-				childrenStack.push(currentChildren);
-				currentChildren = new ArrayList<>();
-				continue;
-			}
-
-			//Handle array closure.
-			if (c == ']') {
-                if (arrayInitializerStack.isEmpty()) {
-                    throw new IllegalArgumentException("Found closing array initializer without opening companion!");
-                }
-
-				//Pop the array information.
-				var start = new RegionOffset(content, arrayInitializerStack.pop());
-				var end = new RegionOffset(content, i + 1);
-				var regionContent = content.substring(start.totalCharacterOffset(), end.totalCharacterOffset());
-
-				//Create the region.
-				var region = new Region(
-						currentChildren.toArray(new Region[0]),
-						false,
-						false,
-						true,
-						false,
-						false,
-						false,
-						false,
-						regionContent,
-						start,
-						end,
-						debugMode()
-				);
-
-				currentChildren = childrenStack.pop();
-				currentChildren.add(region);
-				continue;
-			}
-
-			//In-Line statement end.
-			if (c == ';') {
-				//Code outside of the root code block is not relevant here, (package and import statements).
-				if (statementStart == null) {
-					//We are not interested in regions outside of object structs.
-                    if (bracedRegionStack.isEmpty()) {
-                        continue;
-                    }
-
-					//Helps with debugging.
-                    if (parseMode().throwsOnUnopenedStatements()) {
-                        throw new IllegalStateException("Found closing parameter declaration without opening companion!");
-                    }
-
-					continue;
-				}
-
-				//Create the region
-				Region region = createStatementLikeRegion(content, currentChildren, statementStart, i);
-
-				statementStart = null;
-				explicitlyClosedLastStatement = true;
-				currentChildren = childrenStack.pop();
-				currentChildren.add(region);
-				continue;
-			}
-
-			//Start a statement when we are in the first block.
-			//We only create statements, if we are at least 2 deep.
-			if (statementStart == null && bracedRegionStack.size() > 1 && !String.valueOf(c).trim().isEmpty()) {
-				statementStart = i;
-				childrenStack.push(currentChildren);
-				currentChildren = new ArrayList<>();
-				continue;
-			}
+		var compiler = ToolProvider.getSystemJavaCompiler();
+		if (compiler == null) {
+			throw new IllegalStateException("Java region parsing requires a full JDK with the jdk.compiler module.");
 		}
 
-        if (!bracedRegionStack.isEmpty()) {
-            throw new IllegalArgumentException("Found brace without closing companion! " + bracedRegionStack.stream()
-                    .map(Object::toString)
-                    .collect(Collectors.joining(", "))
-            );
-        }
+		// Formatter tests and callers may supply a member or a statement fragment.
+		List<String> prefixes = List.of("", "class __FormatumFragment {\n",
+				"class __FormatumFragment {\nvoid __fragment() {\n");
+		String originalErrors = "";
+		for (int nesting = 0; nesting < prefixes.size(); nesting++) {
+			String prefix = prefixes.get(nesting);
+			String source = prefix + content + "\n}".repeat(nesting);
+			var diagnostics = new DiagnosticCollector<JavaFileObject>();
+			var file = new SimpleJavaFileObject(URI.create("string:///FormatumSource.java"), JavaFileObject.Kind.SOURCE) {
+				@Override
+				public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+					return source;
+				}
+			};
 
-		//Validate that we properly processed the entire code.
-        if (!parameterizedRegionStack.isEmpty()) {
-            throw new IllegalArgumentException("Found parameter declaration without opening companion!");
-        }
-
-        if (!arrayInitializerStack.isEmpty()) {
-            throw new IllegalArgumentException("Found array initializer without opening companion!");
-        }
-
-        if (!childrenStack.isEmpty()) {
-            throw new IllegalArgumentException("Found children without closing companion! " + childrenStack.stream()
-                    .map(Object::toString)
-                    .collect(Collectors.joining(", "))
-            );
-        }
-
-		//Return the root.
-		return new Region(
-				currentChildren.toArray(new Region[0]),
-				false,
-				false,
-				false,
-				false,
-				false,
-				false,
-				false,
-				content,
-				new RegionOffset(content, 0),
-				new RegionOffset(content, content.length()),
-				debugMode()
-		);
+			try (var manager = compiler.getStandardFileManager(diagnostics, Locale.ROOT, null)) {
+				var task = (JavacTask) compiler.getTask(new StringWriter(), manager, diagnostics,
+						List.of("-proc:none", "--enable-preview", "--source", Integer.toString(Runtime.version().feature())),
+						null, List.of(file));
+				var unit = task.parse().iterator().next();
+				var errors = diagnostics.getDiagnostics().stream()
+						.filter(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
+						.toList();
+				if (!errors.isEmpty()) {
+					if (prefix.isEmpty()) {
+						originalErrors = errors.stream()
+								.map(diagnostic -> "line " + diagnostic.getLineNumber() + ":" + diagnostic.getColumnNumber()
+										+ ": " + diagnostic.getMessage(Locale.ROOT))
+								.reduce((left, right) -> left + "\n" + right).orElseThrow();
+					}
+					continue;
+				}
+				return new Builder(content, prefix.length(), unit, Trees.instance(task).getSourcePositions()).build();
+			} catch (IOException exception) {
+				throw new IllegalStateException("Unable to parse Java source regions.", exception);
+			}
+		}
+		throw new IllegalArgumentException("Unable to parse Java source with JDK " + Runtime.version().feature() + ":\n" + originalErrors);
 	}
 
-	private Region createStatementLikeRegion(final String content, final List<Region> currentChildren, final Integer statementStart, final int i) {
-		var start = new RegionOffset(content, statementStart);
-		var end = new RegionOffset(content, i + 1);
-		var regionContent = content.substring(start.totalCharacterOffset(), end.totalCharacterOffset());
-
-		var isControl = CONTROL_BLOCK_START_REGEX.matcher(regionContent).find();
-
-		return new Region(
-				currentChildren.toArray(new Region[0]),
-				false,
-				false,
-				false,
-				!isControl,
-				isControl,
-				false,
-				false,
-				regionContent,
-				start,
-				end,
-				debugMode()
-		);
+	private enum Kind {
+		ROOT, BLOCK, PARAMETER, ARRAY, STATEMENT, CONTROL, ANNOTATION, ENUM_CONSTANT
 	}
 
-	private static final Pattern CONTROL_BLOCK_START_REGEX = Pattern.compile("^(if|else|while|for|switch|try|catch|finally)\\s*\\(");
+	private static final class Span {
+		private final int start;
+		private final int end;
+		private final Kind kind;
+		private boolean anonymous;
+		private boolean lambda;
+		private final List<Span> children = new ArrayList<>();
+
+		private Span(int start, int end, Kind kind) {
+			this.start = start;
+			this.end = end;
+			this.kind = kind;
+		}
+	}
+
+	private final class Builder extends TreePathScanner<Void, Void> {
+		private final String content;
+		private final int prefixLength;
+		private final CompilationUnitTree unit;
+		private final SourcePositions positions;
+		private final List<JavaSourceTokens.Token> tokens;
+		private final Map<Integer, JavaSourceTokens.Token> closingBraces;
+		private final List<Span> spans = new ArrayList<>();
+
+		private Builder(String content, int prefixLength, CompilationUnitTree unit, SourcePositions positions) {
+			this.content = content;
+			this.prefixLength = prefixLength;
+			this.unit = unit;
+			this.positions = positions;
+			this.tokens = JavaSourceTokens.scan(content);
+			this.closingBraces = tokens.stream().filter(token -> token.text().equals("}"))
+					.collect(Collectors.toMap(JavaSourceTokens.Token::end, Function.identity()));
+		}
+
+		private int start(Tree tree) {
+			return (int) positions.getStartPosition(unit, tree) - prefixLength;
+		}
+
+		private int end(Tree tree) {
+			return (int) positions.getEndPosition(unit, tree) - prefixLength;
+		}
+
+		private Span add(int start, int end, Kind kind) {
+			if (start < 0 || end > content.length() || start >= end) {
+				return null;
+			}
+			var span = new Span(start, end, kind);
+			spans.add(span);
+			return span;
+		}
+
+		private Region build() {
+			scan(unit, null);
+			addDelimiters();
+			spans.sort(Comparator.comparingInt((Span span) -> span.start)
+					.thenComparing(Comparator.comparingInt((Span span) -> span.end).reversed())
+					.thenComparingInt(span -> span.kind == Kind.STATEMENT || span.kind == Kind.CONTROL ? 0 : 1));
+			var root = new Span(0, content.length(), Kind.ROOT);
+			Deque<Span> parents = new ArrayDeque<>();
+			parents.push(root);
+			for (Span span : spans) {
+				while (parents.peek() != root && span.start >= parents.peek().end) {
+					parents.pop();
+				}
+				// javac represents comma-separated declarations as variables with a shared start.
+				if (span.kind == Kind.STATEMENT && parents.peek().kind == Kind.STATEMENT && span.start == parents.peek().start) {
+					continue;
+				}
+				if (span.end > parents.peek().end) {
+					throw new IllegalStateException("Crossing Java source regions at offsets " + span.start + " and " + parents.peek().start);
+				}
+				parents.peek().children.add(span);
+				parents.push(span);
+			}
+			return region(root);
+		}
+
+		private Region region(Span span) {
+			return new Region(span.children.stream().map(this::region).toArray(Region[]::new),
+					span.kind == Kind.PARAMETER, span.kind == Kind.BLOCK, span.kind == Kind.ARRAY,
+					span.kind == Kind.STATEMENT || span.kind == Kind.ANNOTATION || span.kind == Kind.ENUM_CONSTANT,
+					span.kind == Kind.CONTROL,
+					span.anonymous, span.lambda, content.substring(span.start, span.end),
+					new RegionOffset(content, span.start), new RegionOffset(content, span.end), debugMode);
+		}
+
+		@Override
+		public Void visitClass(ClassTree tree, Void unused) {
+			int end = end(tree);
+			var block = addBody(tree);
+			if (block != null) {
+				block.anonymous = getCurrentPath().getParentPath().getLeaf() instanceof NewClassTree;
+				if (start(tree) >= 0 && getCurrentPath().getParentPath().getLeaf() instanceof ClassTree) {
+					add(start(tree), end, Kind.STATEMENT);
+				}
+				if (tree.getKind() == Tree.Kind.ENUM) {
+					var constants = tree.getMembers().stream()
+							.filter(member -> member instanceof VariableTree variable && isEnumConstant(variable))
+							.toList();
+					if (!constants.isEmpty()) {
+						add(start(constants.getFirst()), end(constants.getLast()), Kind.STATEMENT);
+					}
+				}
+			}
+			return super.visitClass(tree, unused);
+		}
+
+		@Override
+		public Void visitBlock(BlockTree tree, Void unused) {
+			Span block = addBody(tree);
+			if (block != null) {
+				block.lambda = getCurrentPath().getParentPath().getLeaf() instanceof LambdaExpressionTree;
+			}
+			return super.visitBlock(tree, unused);
+		}
+
+		@Override
+		public Void scan(Tree tree, Void unused) {
+			if (tree != null) {
+				switch (tree.getKind()) {
+					case EXPRESSION_STATEMENT, RETURN, THROW, BREAK, CONTINUE, ASSERT, YIELD ->
+							add(start(tree), end(tree), Kind.STATEMENT);
+					case IF, FOR_LOOP, ENHANCED_FOR_LOOP, WHILE_LOOP, DO_WHILE_LOOP, SWITCH, SWITCH_EXPRESSION,
+							TRY, CATCH, SYNCHRONIZED -> add(start(tree), end(tree), Kind.CONTROL);
+					case ANNOTATION -> add(start(tree), end(tree), Kind.ANNOTATION);
+					default -> {}
+				}
+				switch (tree.getKind()) {
+					case SWITCH, SWITCH_EXPRESSION, NEW_ARRAY, MODULE -> addBody(tree);
+					default -> {}
+				}
+			}
+			return super.scan(tree, unused);
+		}
+
+		private Span addBody(Tree tree) {
+			var closing = closingBraces.get(end(tree));
+			if (closing == null || closing.companion() < start(tree)) {
+				return null;
+			}
+			return add(closing.companion(), closing.end(), Kind.BLOCK);
+		}
+
+		@Override
+		public Void visitVariable(VariableTree tree, Void unused) {
+			Tree parent = getCurrentPath().getParentPath().getLeaf();
+			var classClosing = parent instanceof ClassTree ? closingBraces.get(end(parent)) : null;
+			boolean isField = classClosing != null && start(tree) > classClosing.companion() && !isEnumConstant(tree);
+			if (parent instanceof BlockTree || isField) {
+				add(start(tree), end(tree), Kind.STATEMENT);
+			} else if (parent instanceof ClassTree && isEnumConstant(tree)
+					&& tokens.stream().anyMatch(token -> token.start() >= start(tree) && token.end() <= end(tree) && token.text().equals("("))) {
+				// Keep each constant's arguments out of the aggregate enum-list continuation policy.
+				add(start(tree), end(tree), Kind.ENUM_CONSTANT);
+			}
+			return super.visitVariable(tree, unused);
+		}
+
+		private boolean isEnumConstant(VariableTree tree) {
+			// javac gives an enum constant's synthetic type the same position as its constructor.
+			return tree.getInitializer() instanceof NewClassTree creation && start(creation) == start(tree.getType());
+		}
+
+		private void addDelimiters() {
+			for (int i = 0; i < tokens.size(); i++) {
+				var token = tokens.get(i);
+				if (token.text().equals("(")) {
+					String previous = i == 0 ? "" : tokens.get(i - 1).text();
+					if (!previous.equals(",") && !previous.equals("=") && !previous.equals("(")) {
+						add(token.start(), token.companion(), Kind.PARAMETER);
+					}
+				} else if (token.text().equals("[")) {
+					add(token.start(), token.companion(), Kind.ARRAY);
+				}
+			}
+		}
+	}
 }

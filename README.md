@@ -56,6 +56,11 @@ immaculate {
 
 If dependency resolution reports a newer minimum runtime in your environment, run Gradle with that newer JDK.
 
+Java indentation parsing uses the JDK running Gradle, without an external Java
+parser. Run Gradle on a full JDK that supports the source language being
+formatted; selecting a newer compilation toolchain alone is not sufficient.
+See [Java source regions](docs/architecture.md#java-source-regions) for details.
+
 ### Common commands
 
 ```bash
@@ -75,4 +80,3 @@ cd "/var/home/marchermans/IdeaProjects/FormatumAdhibe"
 - `docs/configuration.md` - Gradle DSL and step options
 - `docs/hints.md` - hint file schema and matching behavior
 - `docs/compliance-testing.md` - using `libs/checkstyle/checkstyle.xml` as a compliance target
-

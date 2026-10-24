@@ -293,7 +293,7 @@ class FormattingMechanicsRegressionTest {
 
         String source = "class Example {\n"
                 + "\tvoid build() {\n"
-                + "\t\tgeneratedQuad -> {\n"
+                + "\t\tConsumer<Quad> consumer = generatedQuad -> {\n"
                 + "\t\t\tfinal List<BlockTintSource> tintSources = \n"
                 + "\t\t\tinformation.isFluid()\n"
                 + "\t\t\t\t\t? getFluidTintSources()\n"
@@ -311,7 +311,7 @@ class FormattingMechanicsRegressionTest {
 
         String expected = "class Example {\n"
                 + "\tvoid build() {\n"
-                + "\t\tgeneratedQuad -> {\n"
+                + "\t\tConsumer<Quad> consumer = generatedQuad -> {\n"
                 + "\t\t\tfinal List<BlockTintSource> tintSources =\n"
                 + "\t\t\t\t\tinformation.isFluid()\n"
                 + "\t\t\t\t\t\t? getFluidTintSources()\n"
@@ -596,4 +596,3 @@ class FormattingMechanicsRegressionTest {
         assertEquals(expected, formatted);
     }
 }
-

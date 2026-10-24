@@ -293,9 +293,7 @@ public record Region(
 			return false;
 		}
 
-		// For multi-line regions, only check end column when we're actually on the end line.
-		// Intermediate lines are fully contained regardless of their column position.
-		if (end().lineOffset() == start().lineOffset() && end().inLineOffset() < firstCharacterIndex) {
+		if (end().lineOffset() == lineIndex && end().inLineOffset() <= firstCharacterIndex) {
 			return false;
 		}
 
