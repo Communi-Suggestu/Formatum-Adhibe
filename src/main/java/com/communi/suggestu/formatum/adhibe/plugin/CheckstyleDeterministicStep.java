@@ -68,6 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@SuppressWarnings("UnstableApiUsage")
 public abstract class CheckstyleDeterministicStep extends FormattingStep {
 
     // ── Problem taxonomy ──────────────────────────────────────────────────────

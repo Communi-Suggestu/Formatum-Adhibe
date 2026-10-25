@@ -96,7 +96,7 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
                     continue;
                 }
                 if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) {
-                    return text;
+                    continue;
                 }
                 break;
             }
