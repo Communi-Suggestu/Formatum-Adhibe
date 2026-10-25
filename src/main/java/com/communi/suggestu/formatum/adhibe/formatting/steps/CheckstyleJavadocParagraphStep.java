@@ -362,29 +362,25 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
     }
 
     /**
-     * Looks through a result list for a line containing a javadoc '*' marker
-     * and returns its leading whitespace (indentation). Falls back to "".
+     * Looks through a result list for a line that has leading whitespace
+     * before a javadoc '*' and returns that indentation.
+     * Skips the bare '/*'/'/**' line which has no indent.
      */
     private String findJavadocIndentation(List<String> result) {
         for (String line : result) {
             String trimmed = line.trim();
-            if (trimmed.startsWith("/**")) {
-                // Opening: get the indent before /**
-                String raw = line;
-                int i = 0;
-                while (i < raw.length() && Character.isWhitespace(raw.charAt(i))) {
-                    i++;
-                }
-                if (i > 0) return raw.substring(0, i);
+            String raw = line;
+            int i = 0;
+            while (i < raw.length() && Character.isWhitespace(raw.charAt(i))) {
+                i++;
             }
-            if (trimmed.startsWith("*")) {
-                // Content line: get the indent before *
-                String raw = line;
-                int i = 0;
-                while (i < raw.length() && Character.isWhitespace(raw.charAt(i))) {
-                    i++;
+            if (i > 0) {
+                // Has leading whitespace — this is a properly indented javadoc line.
+                // Return its indent (unless it's the bare opening with no indent).
+                // Check that the non-ws portion starts with '*' (content line).
+                if (i < raw.length() && raw.charAt(i) == '*') {
+                    return raw.substring(0, i);
                 }
-                if (i > 0) return raw.substring(0, i);
             }
         }
         return "";
