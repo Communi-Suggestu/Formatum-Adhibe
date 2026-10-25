@@ -980,6 +980,56 @@ class StepFormatterTest {
     }
 
     @Test
+    void skipsTrailingSingleLineComment() {
+        CheckstyleCommentsIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleCommentsIndentationStep.class, STEP_NAME);
+
+        // Trailing comment (code before // on the same line) should NOT be re-indented
+        String source = "class Example {\n\tvoid run() {\n\t\tx = 1; // this is a comment\n\t}\n}\n";
+        String expected = "class Example {\n\tvoid run() {\n\t\tx = 1; // this is a comment\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void reindentsBlockComment() {
+        CheckstyleCommentsIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleCommentsIndentationStep.class, STEP_NAME);
+
+        // Block comment should be re-indented to match previous code line
+        String source = "class Example {\n\tvoid run() {\n/* block comment */\n\t\tx = 1;\n\t}\n}\n";
+        String expected = "class Example {\n\tvoid run() {\n\t/* block comment */\n\t\tx = 1;\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void skipsTrailingBlockComment() {
+        CheckstyleCommentsIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleCommentsIndentationStep.class, STEP_NAME);
+
+        // Trailing block comment (code before /*) should NOT be re-indented
+        String source = "class Example {\n\tvoid run() {\n\t\tx = 1; /* block comment */\n\t}\n}\n";
+        String expected = "class Example {\n\tvoid run() {\n\t\tx = 1; /* block comment */\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void reindentsMultiLineBlockComment() {
+        CheckstyleCommentsIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleCommentsIndentationStep.class, STEP_NAME);
+
+        // Multi-line block comment should be re-indented
+        String source = "class Example {\n\tvoid run() {\n/*\n * comment line\n */\n\t\tx = 1;\n\t}\n}\n";
+        String expected = "class Example {\n\tvoid run() {\n\t/*\n\t * comment line\n\t */\n\t\tx = 1;\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void handlesRegularBlockCommentBodyLines() {
+        CheckstyleCommentsIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleCommentsIndentationStep.class, STEP_NAME);
+
+        // Regular (non-javadoc) block comment with body lines
+        String source = "class Example {\n\tvoid run() {\n/*\n   regular comment body\n   another line\n */\n\t\tx = 1;\n\t}\n}\n";
+        String expected = "class Example {\n\tvoid run() {\n\t/*\n\t   regular comment body\n\t   another line\n\t */\n\t\tx = 1;\n\t}\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void parenPadDoesNotCollapseMultilineMethodSignatures() {
         CheckstyleParenPadStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleParenPadStep.class, STEP_NAME);
         step.getOption().set("nospace");
