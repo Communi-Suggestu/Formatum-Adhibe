@@ -178,6 +178,19 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
                 // Blank or <p> line (no text content)
                 if (hasP) {
                     afterP = true;
+                    // Ensure there's exactly one blank line before this <p> tag
+                    // (Checkstyle requires exactly one blank line before <p>)
+                    if (firstParagraphSeen) {
+                        // Check if the most recent line in the result is already a blank line.
+                        // If so, no action needed. Otherwise insert a blank line before <p>.
+                        String lastLine = result.get(result.size() - 1).trim();
+                        boolean alreadyHasPrecedingBlank = lastLine.equals("*")
+                                || lastLine.equals("* ")
+                                || lastLine.isEmpty();
+                        if (!alreadyHasPrecedingBlank) {
+                            result.add(indentLine(""));
+                        }
+                    }
                     result.add(line);
                 } else {
                     // Blank line — reset afterP
@@ -347,7 +360,8 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
         }
         // Return the indent + "* " (standard javadoc marker with trailing space)
         if (i >= line.length()) {
-            return "* ";
+            // For an empty line, return a standard javadoc blank line
+            return " *";
         }
         // Skip past the "*"
         if (line.charAt(i) == '*') {

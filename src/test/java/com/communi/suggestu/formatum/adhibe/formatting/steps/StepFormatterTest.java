@@ -1726,4 +1726,35 @@ class StepFormatterTest {
         String source = "class Example {}\n";
         assertEquals(source, step.formatter().format("Example.java", source));
     }
+
+    @Test
+    void javadocParagraphInsertsBlankLineBeforePInMultilineFirstParagraph() {
+        CheckstyleJavadocParagraphStep step =
+                ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleJavadocParagraphStep.class, STEP_NAME);
+
+        // Real-world case: first paragraph is multi-line, <p> follows immediately without blank line
+        String source = "/**\n"
+                + " * Provides a stream of BlockPos objects within a given range.\n"
+                + " * The coordinates run from 0 to size - 1 on each axis.\n"
+                + " * <p>\n"
+                + " * Internally invokes {@link #getForRange(int, int)}.\n"
+                + " *\n"
+                + " * @param size The size of each axis.\n"
+                + " * @return A stream of block positions.\n"
+                + " */\n"
+                + "class Example {}\n";
+        String expected = "/**\n"
+                + " * Provides a stream of BlockPos objects within a given range.\n"
+                + " * The coordinates run from 0 to size - 1 on each axis.\n"
+                + " *\n"
+                + " * <p>\n"
+                + " * Internally invokes {@link #getForRange(int, int)}.\n"
+                + " *\n"
+                + " * <p>\n"
+                + " * @param size The size of each axis.\n"
+                + " * @return A stream of block positions.\n"
+                + " */\n"
+                + "class Example {}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
 }
