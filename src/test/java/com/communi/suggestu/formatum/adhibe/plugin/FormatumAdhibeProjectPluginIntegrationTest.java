@@ -227,6 +227,10 @@ class FormatumAdhibeProjectPluginIntegrationTest
                 "        long [] numbers = new long [] { 1L };",
                 "        Map<String, String> value = Map.of();",
                 "    }",
+                "",
+                "    static interface Callback {",
+                "        public abstract void call(final int value);",
+                "    }",
                 "}",
                 ""
         ));
@@ -241,6 +245,8 @@ class FormatumAdhibeProjectPluginIntegrationTest
 
         String formatted = Files.readString(sourceFile);
         assertTrue(formatted.contains("long[] numbers = new long[] { 1L};"), formatted);
+        assertTrue(formatted.contains("\tinterface Callback {"), formatted);
+        assertTrue(formatted.contains("\t\tvoid call(int value);"), formatted);
     }
 
     @Test
