@@ -169,6 +169,13 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
                 // Not the first paragraph:
                 // Check: was there a <p> before this (after a blank line)?
                 if (!afterP) {
+                    // Skip <p> insertion for Javadoc tag lines (@param, @return,
+                    // @throws, etc.) — these are the final paragraph and don't
+                    // need a <p> tag before them.
+                    if (textContent.startsWith("@")) {
+                        result.add(line);
+                        continue;
+                    }
                     // Need to insert <p> + blank line
                     insertPBefore(result, line, javadocStart);
                 }
