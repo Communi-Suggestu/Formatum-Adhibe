@@ -31,6 +31,7 @@ import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleWhitespac
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleSingleSpaceSeparatorStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleGenericWhitespaceStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleCommentsIndentationStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleJavadocParagraphStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CollapseConsecutiveBlankLinesStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.EnsureTrailingNewlineStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.InsertBlankLineAfterIndentedBlockStep;
@@ -126,6 +127,8 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             ProblemId.create("generic-whitespace", "Invalid generic whitespace", FORMATTING_GROUP);
     private static final ProblemId ID_COMMENTS_INDENTATION =
             ProblemId.create("comments-indentation", "Incorrect comment indentation", FORMATTING_GROUP);
+    private static final ProblemId ID_JAVADOC_PARAGRAPH =
+            ProblemId.create("javadoc-paragraph", "Incorrect javadoc paragraph formatting", FORMATTING_GROUP);
     private static final ProblemId ID_AVOID_STAR_IMPORT =
             ProblemId.create("avoid-star-import", "Avoid wildcard imports", FORMATTING_GROUP);
     private static final ProblemId ID_ILLEGAL_IMPORT =
@@ -280,6 +283,7 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             case SINGLE_SPACE_SEPARATOR -> ID_SINGLE_SPACE_SEPARATOR;
             case GENERIC_WHITESPACE -> ID_GENERIC_WHITESPACE;
             case COMMENTS_INDENTATION -> ID_COMMENTS_INDENTATION;
+            case JAVADOC_PARAGRAPH -> ID_JAVADOC_PARAGRAPH;
             case CONVERT_LEADING_SPACES_TO_TABS -> ID_LEADING_SPACES;
             case ORDER_IMPORTS -> ID_IMPORT_ORDER;
             case AVOID_STAR_IMPORT -> ID_AVOID_STAR_IMPORT;
@@ -407,6 +411,7 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             case SINGLE_SPACE_SEPARATOR -> getObjects().newInstance(CheckstyleSingleSpaceSeparatorStep.class, generatedName).formatter();
             case GENERIC_WHITESPACE -> getObjects().newInstance(CheckstyleGenericWhitespaceStep.class, generatedName).formatter();
             case COMMENTS_INDENTATION -> getObjects().newInstance(CheckstyleCommentsIndentationStep.class, generatedName).formatter();
+            case JAVADOC_PARAGRAPH -> getObjects().newInstance(CheckstyleJavadocParagraphStep.class, generatedName).formatter();
             case AVOID_STAR_IMPORT -> createImportLintFormatter(generatedName, step -> step.getAvoidStarImport().set(true));
             case REDUNDANT_IMPORT -> createImportLintFormatter(generatedName, step -> step.getRemoveRedundantImports().set(true));
             case UNUSED_IMPORT -> createImportLintFormatter(generatedName, step -> step.getRemoveUnusedImports().set(true));

@@ -1632,4 +1632,98 @@ class StepFormatterTest {
         assertTrue(formatted.contains("import java.util.Map"));
         assertTrue(formatted.contains("import javax.swing"));
     }
+
+    // ── JavadocParagraph tests ──────────────────────────────────────────────
+
+    @Test
+    void javadocParagraphFillsInMissingPAndBlankLine() {
+        CheckstyleJavadocParagraphStep step =
+                ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleJavadocParagraphStep.class, STEP_NAME);
+
+        String source = "/**\n"
+                + " * First paragraph.\n"
+                + " *\n"
+                + " * Second paragraph without p tag.\n"
+                + " */\n"
+                + "class Example {}\n";
+        String expected = "/**\n"
+                + " * First paragraph.\n"
+                + " *\n"
+                + " * <p>\n"
+                + " * Second paragraph without p tag.\n"
+                + " */\n"
+                + "class Example {}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void javadocParagraphRemovesPBeforeBlockTag() {
+        CheckstyleJavadocParagraphStep step =
+                ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleJavadocParagraphStep.class, STEP_NAME);
+
+        String source = "/**\n"
+                + " * First paragraph.\n"
+                + " *\n"
+                + " * <p>\n"
+                + " * <pre>code here</pre>\n"
+                + " */\n"
+                + "class Example {}\n";
+        String expected = "/**\n"
+                + " * First paragraph.\n"
+                + " *\n"
+                + " * <pre>code here</pre>\n"
+                + " */\n"
+                + "class Example {}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void javadocParagraphDoesNotAlterAlreadyCorrect() {
+        CheckstyleJavadocParagraphStep step =
+                ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleJavadocParagraphStep.class, STEP_NAME);
+
+        String source = "/**\n"
+                + " * First paragraph.\n"
+                + " *\n"
+                + " * <p>\n"
+                + " * Second paragraph.\n"
+                + " */\n"
+                + "class Example {}\n";
+        assertEquals(source, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void javadocParagraphHandlesMultipleParagraphs() {
+        CheckstyleJavadocParagraphStep step =
+                ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleJavadocParagraphStep.class, STEP_NAME);
+
+        String source = "/**\n"
+                + " * First.\n"
+                + " *\n"
+                + " * Second.\n"
+                + " *\n"
+                + " * Third.\n"
+                + " */\n"
+                + "class Example {}\n";
+        String expected = "/**\n"
+                + " * First.\n"
+                + " *\n"
+                + " * <p>\n"
+                + " * Second.\n"
+                + " *\n"
+                + " * <p>\n"
+                + " * Third.\n"
+                + " */\n"
+                + "class Example {}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void javadocParagraphHandlesCodeWithJavadocButNoChanges() {
+        CheckstyleJavadocParagraphStep step =
+                ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleJavadocParagraphStep.class, STEP_NAME);
+
+        String source = "class Example {}\n";
+        assertEquals(source, step.formatter().format("Example.java", source));
+    }
 }
