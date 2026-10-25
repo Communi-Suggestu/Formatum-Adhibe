@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "intellij": {
+      "type": "stdio",
+      "command": "/var/home/marchermans/.local/share/JetBrains/Toolbox/apps/intellij-idea-ultimate/bin/idea",
+      "args": ["stdioMcpServer"],
+      "env": {
+        "IJ_MCP_SERVER_PROJECT_PATH": "/var/home/marchermans/IdeaProjects/FormatumAdhibe",
+        "IJ_MCP_SERVER_PORT": "64342"
+      },
+      "exposure": "direct",
+      "description": "JetBrains IntelliJ IDEA: run tests, manage breakpoints and debug sessions, inspect code and project structure."
+    }
+  }
+}

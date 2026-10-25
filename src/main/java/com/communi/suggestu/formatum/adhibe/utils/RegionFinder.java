@@ -259,7 +259,17 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				var token = tokens.get(i);
 				if (token.text().equals("(")) {
 					String previous = i == 0 ? "" : tokens.get(i - 1).text();
-					if (!previous.equals(",") && !previous.equals("=") && !previous.equals("(")) {
+					// Only treat ( as a parameter block delimiter when preceded by a
+					// "real" parameter-list starter: a comma (subsequent param), equals
+					// (lambda ->), or another (nested call).  Cast expressions, chained
+					// method invocations, and a ( starting a fresh statement should NOT
+					// generate a PARAMETER span.
+					//   cast :  ) (  — previous token is ')' from the closing cast
+					//   chain  :  . (  — method call on another call result
+					//   new stmt :  ; (  or  } (  — first '(' after statement-ending punctuation
+					if (!previous.equals(",") && !previous.equals("=") && !previous.equals("(")
+							&& !previous.equals(")") && !previous.equals(";")
+							&& !previous.equals("{") && !previous.equals("}")) {
 						add(token.start(), token.companion(), Kind.PARAMETER);
 					}
 				} else if (token.text().equals("[")) {
