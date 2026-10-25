@@ -188,7 +188,9 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
                                 || lastLine.equals("* ")
                                 || lastLine.isEmpty();
                         if (!alreadyHasPrecedingBlank) {
-                            result.add(indentLine(""));
+                            // Find the indentation from another line in the result.
+                            String indent = findJavadocIndentation(result);
+                            result.add(indentLineWithPrefix(indent));
                         }
                     }
                     result.add(line);
@@ -350,6 +352,42 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
         // Insert <p> right after the blank line
         String pLine = indentLine(result.get(lastBlankIdx)) + "<p>";
         result.add(lastBlankIdx + 1, pLine);
+    }
+
+    /**
+     * Looks through a result list for a line containing a javadoc '*' marker
+     * and returns its leading whitespace (indentation). Falls back to "".
+     */
+    private String findJavadocIndentation(List<String> result) {
+        for (String line : result) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("/**")) {
+                // Opening: get the indent before /**
+                String raw = line;
+                int i = 0;
+                while (i < raw.length() && Character.isWhitespace(raw.charAt(i))) {
+                    i++;
+                }
+                if (i > 0) return raw.substring(0, i);
+            }
+            if (trimmed.startsWith("*")) {
+                // Content line: get the indent before *
+                String raw = line;
+                int i = 0;
+                while (i < raw.length() && Character.isWhitespace(raw.charAt(i))) {
+                    i++;
+                }
+                if (i > 0) return raw.substring(0, i);
+            }
+        }
+        return "";
+    }
+
+    /**
+     * Builds a blank javadoc line: {@code indent + "*"}.
+     */
+    private String indentLineWithPrefix(String indent) {
+        return indent + "*";
     }
 
     private String indentLine(String line) {

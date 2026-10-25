@@ -1732,7 +1732,7 @@ class StepFormatterTest {
         CheckstyleJavadocParagraphStep step =
                 ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleJavadocParagraphStep.class, STEP_NAME);
 
-        // Real-world case: first paragraph is multi-line, <p> follows immediately without blank line
+        // Case with minimal (1-space) indentation
         String source = "/**\n"
                 + " * Provides a stream of BlockPos objects within a given range.\n"
                 + " * The coordinates run from 0 to size - 1 on each axis.\n"
@@ -1755,6 +1755,43 @@ class StepFormatterTest {
                 + " * @return A stream of block positions.\n"
                 + " */\n"
                 + "class Example {}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void javadocParagraphInsertsIndentedBlankLineBeforeP() {
+        CheckstyleJavadocParagraphStep step =
+                ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleJavadocParagraphStep.class, STEP_NAME);
+
+        // Real-world case: 5-space indentation (as in the issue report)
+        String source = "/**\n"
+                + "     * Provides a stream of BlockPos objects within a given range which is {@code size} cubed in size.\n"
+                + "     * The coordinates will as such (on each axis) run from 0 to {@code size - 1}.\n"
+                + "     * <p>\n"
+                + "     * Internally invokes {@link #getForRange(int, int)}, with {@code 0} as the min value,\n"
+                + "     * and {@code size - 1} as max value.\n"
+                + "     *\n"
+                + "     * @param size The size of each axis for the block positions stream.\n"
+                + "     * @return A stream of block positions in the {@code size} cubed in area.\n"
+                + "     */\n"
+                + "    public static Stream<BlockPos> getForRange(final int size) {\n"
+                + "        return getForRange(0, size - 1);\n"
+                + "    }\n";
+        String expected = "/**\n"
+                + "     * Provides a stream of BlockPos objects within a given range which is {@code size} cubed in size.\n"
+                + "     * The coordinates will as such (on each axis) run from 0 to {@code size - 1}.\n"
+                + "     *\n"
+                + "     * <p>\n"
+                + "     * Internally invokes {@link #getForRange(int, int)}, with {@code 0} as the min value,\n"
+                + "     * and {@code size - 1} as max value.\n"
+                + "     *\n"
+                + "     * <p>\n"
+                + "     * @param size The size of each axis for the block positions stream.\n"
+                + "     * @return A stream of block positions in the {@code size} cubed in area.\n"
+                + "     */\n"
+                + "    public static Stream<BlockPos> getForRange(final int size) {\n"
+                + "        return getForRange(0, size - 1);\n"
+                + "    }\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 }
