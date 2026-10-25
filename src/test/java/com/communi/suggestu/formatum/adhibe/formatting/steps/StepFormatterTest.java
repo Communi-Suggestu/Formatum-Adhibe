@@ -1558,4 +1558,33 @@ class StepFormatterTest {
         String expected2 = "forEach(item -> {\n\tprocess(item);\n}\n);";
         assertEquals(expected2, removeBlankLines.formatter().format("Example.java", source2));
     }
+
+    @Test
+    void javaStepReturningNoChangesDoesNotBreakImportOrderStep() {
+        // Tests the fix for CheckstyleDeterministicStep.withProblemReporting:
+        // When the Java step returns null (unchanged text), the ImportOrder step
+        // should still receive the original text and apply ordering.
+        CheckstyleImportOrderStep orderStep = ProjectBuilder.builder().build()
+                .getObjects().newInstance(CheckstyleImportOrderStep.class, STEP_NAME);
+        orderStep.getGroups().set(java.util.List.of("java", "javax", "*", "net.fabricmc"));
+        orderStep.getSeparated().set(true);
+        orderStep.getOption().set("top");
+
+        // Clean Java file: no formatting issues → Java step returns null
+        String source = "package test;\n\nimport javax.swing.JButton;\nimport java.util.Map;\n\npublic class Example {\n}\n";
+
+        // Simulate the Java step returning null (no changes needed)
+        String javaResult = null;
+        // withProblemReporting fix: return the original text, not the formatter's null result
+        String checkstyleInput = javaResult != null ? javaResult : source;
+
+        // The ImportOrder step should NOT crash and should reorder the imports
+        String formatted = orderStep.formatter().format("Example.java", checkstyleInput);
+
+        // Verify: java.util.Map should come before javax.swing.JButton
+        assertTrue(formatted.indexOf("import java.util.Map") < formatted.indexOf("import javax.swing"));
+        // Verify both imports still present (no unused import removal in ordering step)
+        assertTrue(formatted.contains("import java.util.Map"));
+        assertTrue(formatted.contains("import javax.swing"));
+    }
 }

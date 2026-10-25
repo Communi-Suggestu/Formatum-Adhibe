@@ -1,5 +1,6 @@
 package com.communi.suggestu.formatum.adhibe.plugin;
 
+import com.communi.suggestu.formatum.adhibe.checkstyle.hints.FixMode;
 import org.gradle.testkit.runner.GradleRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -455,6 +456,70 @@ class FormatumAdhibeProjectPluginIntegrationTest
         // Guard against the previous accept-block deindent/clobber pattern.
         assertFalse(formatted.contains("\npublic void accept"), formatted);
         assertFalse(formatted.contains("\nif (value != null)\n\n\t\t\t\t{"), formatted);
+    }
+
+    @Test
+    void pluginAppliesImportOrderingAndRemovesUnusedImportsWhenJavaStepReturnsNoChanges() throws IOException {
+        Files.copy(REPOSITORY_CHECKSTYLE_CONFIG, projectDirectory.resolve("checkstyle.xml"));
+        Files.copy(REPOSITORY_HINTS_FILE, projectDirectory.resolve("checkstyle-immaculate-hints.yaml"));
+
+        Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
+        Files.writeString(projectDirectory.resolve("build.gradle"), """
+                plugins {
+                    id 'java'
+                    id 'com.communi.suggestu.formatum.adhibe'
+                }
+
+                repositories {
+                    mavenCentral()
+                }
+
+                immaculate {
+                    workflows.register('java') {
+                        java()
+                        checkstyle('checkstyle') {
+                            checkstyleConfig = file('checkstyle.xml')
+                        }
+                    }
+                }
+                """);
+
+        // A clean Java file: javax.swing.JButton is unused and will be removed,
+        // java.util.Map is used and will be kept (no reordering needed).
+        // The Java step returns unchanged (no formatting issues),
+        // but the import order and unused removal steps must still run.
+        // The chain must not break when the Java step returns unchanged text.
+        Path sourceFile = projectDirectory.resolve("src/main/java/test/Example.java");
+        Files.createDirectories(sourceFile.getParent());
+        Files.writeString(sourceFile, """
+                package test;
+
+                import javax.swing.JButton;
+                import java.util.Map;
+
+                public class Example {
+                    public static void run() {
+                        Map<String, String> value = Map.of();
+                    }
+                }
+                """);
+
+        var apply = GradleRunner.create()
+                .withProjectDir(projectDirectory.toFile())
+                .withPluginClasspath()
+                .withArguments("javaImmaculateApply", "--stacktrace")
+                .build();
+
+        assertEquals(SUCCESS, Objects.requireNonNull(apply.task(":javaImmaculateApply")).getOutcome());
+
+        String formatted = Files.readString(sourceFile);
+
+        // javax.swing.JButton is unused — should be removed
+        assertFalse(formatted.contains("javax.swing.JButton"));
+        // java.util.Map is used — should be kept
+        assertTrue(formatted.contains("java.util.Map"));
+        // Class should still exist
+        assertTrue(formatted.contains("public class Example"));
     }
 
     @Test
