@@ -1,0 +1,76 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.communi-suggestu",
+    "module": "formatum-adhibe",
+    "version": "0.3.64",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.3.0"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 21,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "formatum-adhibe-0.3.64.jar",
+          "url": "formatum-adhibe-0.3.64.jar",
+          "size": 180276,
+          "sha512": "fb5283e062ffa3d8482cef07052cbca58c76aabceb1b7b07696daca17f52425ab454b150811840455a88fb17b8bd9e65fa64d23131a0a688ceb75e8f148cafd7",
+          "sha256": "0e20889001f5f393e404983f3549bc196085d0946bf60f4a6a77c50989563da0",
+          "sha1": "9949a093c55bb2030e8fbe0a00adc7a0a1889157",
+          "md5": "cffb6ee1444c898576c43a8f1ba47eef"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 21,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "dev.lukebemish",
+          "module": "immaculate",
+          "version": {
+            "requires": "0.2.+"
+          }
+        },
+        {
+          "group": "org.yaml",
+          "module": "snakeyaml",
+          "version": {
+            "requires": "2.2"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "formatum-adhibe-0.3.64.jar",
+          "url": "formatum-adhibe-0.3.64.jar",
+          "size": 180276,
+          "sha512": "fb5283e062ffa3d8482cef07052cbca58c76aabceb1b7b07696daca17f52425ab454b150811840455a88fb17b8bd9e65fa64d23131a0a688ceb75e8f148cafd7",
+          "sha256": "0e20889001f5f393e404983f3549bc196085d0946bf60f4a6a77c50989563da0",
+          "sha1": "9949a093c55bb2030e8fbe0a00adc7a0a1889157",
+          "md5": "cffb6ee1444c898576c43a8f1ba47eef"
+        }
+      ]
+    }
+  ]
+}

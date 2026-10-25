@@ -57,7 +57,7 @@ public abstract class CheckstyleImportOrderStep extends FormattingStep {
                     lastImport = i;
                     continue;
                 }
-                if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) {
+                if (trimmed.startsWith("//") || trimmed.startsWith("/*")) {
                     return text;
                 }
                 break;

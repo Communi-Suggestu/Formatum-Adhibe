@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <!-- This module was also published with a richer model, Gradle metadata,  -->
+  <!-- which should be used instead. Do not delete the following line which  -->
+  <!-- is to indicate to Gradle or any Gradle module metadata file consumer  -->
+  <!-- that they should prefer consuming it instead. -->
+  <!-- do_not_remove: published-with-gradle-metadata -->
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.communi-suggestu</groupId>
+  <artifactId>formatum-adhibe</artifactId>
+  <version>0.3.65</version>
+  <inceptionYear>2026</inceptionYear>
+  <organization>
+    <name>communi-suggestu</name>
+    <url>https://github.com/Communi-Suggestu</url>
+  </organization>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
+  <scm>
+    <connection>https://github.com/Communi-Suggestu/Formatum-Adhibe.git</connection>
+    <developerConnection>https://github.com/Communi-Suggestu/Formatum-Adhibe.git</developerConnection>
+    <url>https://github.com/Communi-Suggestu/Formatum-Adhibe</url>
+  </scm>
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/Communi-Suggestu/Formatum-Adhibe/issues</url>
+  </issueManagement>
+  <ciManagement>
+    <system>GitHub Actions</system>
+    <url>https://github.com/Communi-Suggestu/Formatum-Adhibe/actions</url>
+  </ciManagement>
+  <distributionManagement>
+    <downloadUrl>https://registry.communi-suggestu.com/repository/formatum-adhibe</downloadUrl>
+  </distributionManagement>
+  <dependencies>
+    <dependency>
+      <groupId>dev.lukebemish</groupId>
+      <artifactId>immaculate</artifactId>
+      <version>0.2.+</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>2.2</version>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
+</project>
