@@ -134,6 +134,58 @@ class StepFormatterTest {
     }
 
     @Test
+    void enforcesLeftCurlyPolicyHandlesBraceFollowedByBody() {
+        CheckstyleLeftCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleLeftCurlyStep.class, STEP_NAME);
+        step.getOption().set("eol");
+        step.getIgnoreEnums().set(true);
+
+        String source = "ChiselingOperation(final boolean processesAir)\n\t{\n\t\tthis.processesAir = processesAir;\n\t}\n";
+        String expected = "ChiselingOperation(final boolean processesAir) {\n\t\tthis.processesAir = processesAir;\n\t}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void enforcesLeftCurlySkipsEnumBodyOpeningWhenIgnoreEnumsIsTrue() {
+        CheckstyleLeftCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleLeftCurlyStep.class, STEP_NAME);
+        step.getOption().set("eol");
+        step.getIgnoreEnums().set(true);
+
+        String source = "public enum Foo\n\t{\n\tA, B;\n}\n";
+        String expected = "public enum Foo\n\t{\n\tA, B;\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void enforcesLeftCurlyHandlesEnumBodyOpeningWhenIgnoreEnumsIsFalse() {
+        CheckstyleLeftCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleLeftCurlyStep.class, STEP_NAME);
+        step.getOption().set("eol");
+        step.getIgnoreEnums().set(false);
+
+        String source = "public enum Foo\n\t{\n\tA, B;\n}\n";
+        String expected = "public enum Foo {\n\tA, B;\n}\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void enforcesLeftCurlyHandlesEnumBodyOpeningAndMethodBodies() {
+        // Test with ignoreEnums=false (user explicitly wants enums treated like classes)
+        CheckstyleLeftCurlyStep stepFalse = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleLeftCurlyStep.class, STEP_NAME);
+        stepFalse.getOption().set("eol");
+        stepFalse.getIgnoreEnums().set(false);
+
+        String source = "package mod.chiselsandbits.api.chiseling;\n\n/**\n * Represents the mode of operandus of the current chiseling context.\n */\npublic enum ChiselingOperation\n\t{\n\tCHISELING(false),\n\tPLACING(true);\n\n\tChiselingOperation(final boolean processesAir) {this.processesAir = processesAir; }\n\n\tpublic boolean processesAir() {\n\t\treturn processesAir;\n\t}\n\n\tpublic boolean isPlacing() {\n\t\treturn this == PLACING;\n\t}\n}\n";
+        String result = stepFalse.formatter().format("Example.java", source);
+        // Verify that the enum body opening brace is moved to the enum declaration line
+        // (the */ javadoc line is skipped, enum declaration is the attach point)
+        assertTrue(result.contains("public enum ChiselingOperation {"));
+        // Verify that method body braces are moved to previous line
+        assertTrue(result.contains("processesAir() {"));
+        assertTrue(result.contains("isPlacing() {"));
+        // Verify that the constructor brace is moved
+        assertTrue(result.contains("ChiselingOperation(final boolean processesAir) {"));
+    }
+
+    @Test
     void enforcesRightCurlySamePolicy() {
         CheckstyleRightCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleRightCurlyStep.class, STEP_NAME);
         step.getOption().set("same");

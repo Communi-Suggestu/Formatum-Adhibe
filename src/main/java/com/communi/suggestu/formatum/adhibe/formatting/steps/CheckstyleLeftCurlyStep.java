@@ -36,29 +36,43 @@ public abstract class CheckstyleLeftCurlyStep extends FormattingStep {
 
     private String moveLeftCurlyToPreviousLine(List<String> lines) {
         for (int i = 1; i < lines.size(); i++) {
-            String current = lines.get(i).strip();
-            if (!"{".equals(current)) {
+            String line = lines.get(i);
+            String stripped = line.strip();
+            int firstNonSpace = 0;
+            while (firstNonSpace < stripped.length()
+                   && Character.isWhitespace(stripped.charAt(firstNonSpace))) {
+                firstNonSpace++;
+            }
+            if (firstNonSpace >= stripped.length()
+                    || stripped.charAt(firstNonSpace) != '{') {
                 continue;
             }
-
+            String afterBrace = stripped.substring(1);
+            String afterBraceTrimmed = afterBrace.strip();
             int previousIndex = findAttachCandidateIndex(lines, i - 1);
             if (previousIndex < 0) {
                 continue;
             }
-
             String previous = lines.get(previousIndex);
             String previousTrimmed = stripInlineComment(previous).stripTrailing();
             if (previousTrimmed.isEmpty() || previousTrimmed.endsWith("{")) {
                 continue;
             }
-
-            if (getIgnoreEnums().getOrElse(true) && previousTrimmed.matches(".*\\benum\\b.*")) {
+            if (getIgnoreEnums().getOrElse(true)
+                    && previousTrimmed.matches(".*\\benum\\b.*")) {
                 continue;
             }
-
-            lines.set(previousIndex, insertBraceBeforeInlineComment(previous));
-            lines.subList(previousIndex + 1, i + 1).clear();
-            i = previousIndex;
+            if (afterBraceTrimmed.isEmpty()) {
+                lines.set(previousIndex, insertBraceBeforeInlineComment(previous));
+                lines.subList(previousIndex + 1, i + 1).clear();
+                i = previousIndex;
+            } else {
+                String indent = line.substring(0, firstNonSpace);
+                String body = afterBrace;
+                lines.set(previousIndex, insertBraceBeforeInlineComment(previous));
+                lines.set(i, body);
+                lines.set(i, indent + body.stripLeading());
+            }
         }
         return String.join("\n", lines);
     }
@@ -70,7 +84,7 @@ public abstract class CheckstyleLeftCurlyStep extends FormattingStep {
                 continue;
             }
             String codePart = stripInlineComment(line).trim();
-            if (codePart.isEmpty()) {
+            if (codePart.isEmpty() || codePart.equals("*/")) {
                 continue;
             }
             return i;
@@ -79,22 +93,25 @@ public abstract class CheckstyleLeftCurlyStep extends FormattingStep {
     }
 
     private static String insertBraceBeforeInlineComment(String line) {
-        int commentIndex = line.indexOf("//");
-        if (commentIndex < 0) {
+        int slashIndex = line.indexOf("//");
+        if (slashIndex < 0) {
             return line.stripTrailing() + " {";
         }
-
-        String beforeComment = line.substring(0, commentIndex).stripTrailing();
-        String comment = line.substring(commentIndex).stripLeading();
+        String beforeComment = line.substring(0, slashIndex).stripTrailing();
+        String comment = line.substring(slashIndex).stripLeading();
         return beforeComment + " { " + comment;
     }
 
     private static String stripInlineComment(String line) {
-        int commentIndex = line.indexOf("//");
-        if (commentIndex < 0) {
+        int slashIndex = line.indexOf("//");
+        if (slashIndex < 0) {
+            String trimmed = line.trim();
+            if (trimmed.equals("*/")) {
+                return "";
+            }
             return line;
         }
-        return line.substring(0, commentIndex);
+        return line.substring(0, slashIndex);
     }
 
     private String moveLeftCurlyToNewLine(List<String> lines) {
@@ -123,4 +140,3 @@ public abstract class CheckstyleLeftCurlyStep extends FormattingStep {
         return String.join("\n", lines);
     }
 }
-
