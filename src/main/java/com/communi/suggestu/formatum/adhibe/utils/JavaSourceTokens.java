@@ -8,12 +8,12 @@ import java.util.List;
 /**
  * Locates punctuation omitted from javac's public AST; syntax and ownership come from javac.
  */
-final class JavaSourceTokens {
+public final class JavaSourceTokens {
 	private JavaSourceTokens() {}
 
-	record Token(String text, int start, int end, int companion) {}
+	public record Token(String text, int start, int end, int companion) {}
 
-	static List<Token> scan(String source) {
+	public static List<Token> scan(String source) {
 		Translated translated = translate(source);
 		source = translated.text();
 		List<Token> tokens = new ArrayList<>();

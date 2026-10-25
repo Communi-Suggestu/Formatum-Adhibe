@@ -795,6 +795,54 @@ class StepFormatterTest {
     }
 
     @Test
+    void appliesArrayTypeStyleRules() {
+        CheckstyleArrayTypeStyleStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleArrayTypeStyleStep.class, STEP_NAME);
+
+        String source = "StreamCodec<FriendlyByteBuf, long[]> LONG_ARRAY = new StreamCodec<>() {\n"
+                + "\tpublic long [] decode(FriendlyByteBuf buffer) {\n"
+                + "\t\treturn buffer.readLongArray();\n"
+                + "\t}\n"
+                + "\n"
+                + "\tpublic void encode(FriendlyByteBuf buffer, long [] payload) {\n"
+                + "\t\tbuffer.writeLongArray(payload);\n"
+                + "\t}\n"
+                + "};\n";
+
+        String expected = "StreamCodec<FriendlyByteBuf, long[]> LONG_ARRAY = new StreamCodec<>() {\n"
+                + "\tpublic long[] decode(FriendlyByteBuf buffer) {\n"
+                + "\t\treturn buffer.readLongArray();\n"
+                + "\t}\n"
+                + "\n"
+                + "\tpublic void encode(FriendlyByteBuf buffer, long[] payload) {\n"
+                + "\t\tbuffer.writeLongArray(payload);\n"
+                + "\t}\n"
+                + "};\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void arrayTypeStyleNormalizesMultidimensionalArraysAndLeavesLiteralsUntouched() {
+        CheckstyleArrayTypeStyleStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleArrayTypeStyleStep.class, STEP_NAME);
+
+        String source = "class Example {\n"
+                + "\tint [][] grid = new int [] [];\n"
+                + "\tlong[] values = { 1L };\n"
+                + "\tString label = \"see [docs] for details\"; // long [] in a comment stays\n"
+                + "\tint first = values [ 0 ];\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tint[][] grid = new int[][];\n"
+                + "\tlong[] values = { 1L };\n"
+                + "\tString label = \"see [docs] for details\"; // long [] in a comment stays\n"
+                + "\tint first = values[ 0 ];\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void genericMethodInvocationDoesNotAddSpaceAfterClosingAngles() {
         CheckstyleGenericWhitespaceStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleGenericWhitespaceStep.class, STEP_NAME);
 

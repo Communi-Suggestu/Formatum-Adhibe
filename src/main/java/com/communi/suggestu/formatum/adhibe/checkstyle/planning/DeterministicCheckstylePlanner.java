@@ -71,6 +71,7 @@ public final class DeterministicCheckstylePlanner {
             case "WhitespaceAround" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.WHITESPACE_AROUND, module.message().orElse(null));
             case "SingleSpaceSeparator" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.SINGLE_SPACE_SEPARATOR, module.message().orElse(null));
             case "GenericWhitespace" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.GENERIC_WHITESPACE, module.message().orElse(null));
+            case "ArrayTypeStyle" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.ARRAY_TYPE_STYLE, module.message().orElse(null));
             case "CommentsIndentation" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.COMMENTS_INDENTATION, module.message().orElse(null));
             case "JavadocParagraph" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.JAVADOC_PARAGRAPH, module.message().orElse(null));
             case "AvoidStarImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.AVOID_STAR_IMPORT, module.message().orElse(null));

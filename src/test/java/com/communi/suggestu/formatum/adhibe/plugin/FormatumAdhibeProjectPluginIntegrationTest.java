@@ -224,6 +224,7 @@ class FormatumAdhibeProjectPluginIntegrationTest
                 "",
                 "    public static void run() {    ",
                 "",
+                "        long [] numbers = new long [] { 1L };",
                 "        Map<String, String> value = Map.of();",
                 "    }",
                 "}",
@@ -237,6 +238,9 @@ class FormatumAdhibeProjectPluginIntegrationTest
                 .build();
 
         assertEquals(SUCCESS, Objects.requireNonNull(apply.task(":javaImmaculateApply")).getOutcome());
+
+        String formatted = Files.readString(sourceFile);
+        assertTrue(formatted.contains("long[] numbers = new long[] { 1L};"), formatted);
     }
 
     @Test

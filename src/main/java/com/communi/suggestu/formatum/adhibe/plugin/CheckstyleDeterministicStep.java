@@ -30,6 +30,7 @@ import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleWhitespac
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleWhitespaceAroundStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleSingleSpaceSeparatorStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleGenericWhitespaceStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleArrayTypeStyleStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleCommentsIndentationStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleJavadocParagraphStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CollapseConsecutiveBlankLinesStep;
@@ -125,6 +126,8 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             ProblemId.create("single-space-separator", "Invalid multi-space separator", FORMATTING_GROUP);
     private static final ProblemId ID_GENERIC_WHITESPACE =
             ProblemId.create("generic-whitespace", "Invalid generic whitespace", FORMATTING_GROUP);
+    private static final ProblemId ID_ARRAY_TYPE_STYLE =
+            ProblemId.create("array-type-style", "Array brackets should be adjacent to the type name (long[] not long [])", FORMATTING_GROUP);
     private static final ProblemId ID_COMMENTS_INDENTATION =
             ProblemId.create("comments-indentation", "Incorrect comment indentation", FORMATTING_GROUP);
     private static final ProblemId ID_JAVADOC_PARAGRAPH =
@@ -282,6 +285,7 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             case WHITESPACE_AROUND -> ID_WHITESPACE_AROUND;
             case SINGLE_SPACE_SEPARATOR -> ID_SINGLE_SPACE_SEPARATOR;
             case GENERIC_WHITESPACE -> ID_GENERIC_WHITESPACE;
+            case ARRAY_TYPE_STYLE -> ID_ARRAY_TYPE_STYLE;
             case COMMENTS_INDENTATION -> ID_COMMENTS_INDENTATION;
             case JAVADOC_PARAGRAPH -> ID_JAVADOC_PARAGRAPH;
             case CONVERT_LEADING_SPACES_TO_TABS -> ID_LEADING_SPACES;
@@ -410,6 +414,7 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             }
             case SINGLE_SPACE_SEPARATOR -> getObjects().newInstance(CheckstyleSingleSpaceSeparatorStep.class, generatedName).formatter();
             case GENERIC_WHITESPACE -> getObjects().newInstance(CheckstyleGenericWhitespaceStep.class, generatedName).formatter();
+            case ARRAY_TYPE_STYLE -> getObjects().newInstance(CheckstyleArrayTypeStyleStep.class, generatedName).formatter();
             case COMMENTS_INDENTATION -> getObjects().newInstance(CheckstyleCommentsIndentationStep.class, generatedName).formatter();
             case JAVADOC_PARAGRAPH -> getObjects().newInstance(CheckstyleJavadocParagraphStep.class, generatedName).formatter();
             case AVOID_STAR_IMPORT -> createImportLintFormatter(generatedName, step -> step.getAvoidStarImport().set(true));
