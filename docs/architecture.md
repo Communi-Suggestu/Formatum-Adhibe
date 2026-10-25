@@ -40,6 +40,15 @@
 - Require explicit hints for potentially semantic rewrites.
 - Make compliance measurable against real project Checkstyle configs.
 
+## Import usage
+
+Import linting uses javac attribution for code and the public `DocTrees` API for
+Javadoc references, including `{@link}`, `{@linkplain}`, `@see`, and `@throws`.
+Types named in reference qualifiers and method parameter lists retain their
+imports and participate in wildcard expansion. Plain prose, link labels, and
+`{@code}` text do not count as import usage. Fully qualified documentation
+references do not require an import.
+
 ## Java source regions
 
 `RegionFinder` uses the running JDK's public `JavacTask.parse()` API to discover

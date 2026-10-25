@@ -1011,6 +1011,51 @@ class StepFormatterTest {
     }
 
     @Test
+    void retainsJavadocImportsAndRemovesUnusedImports() {
+        CheckstyleImportLintStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
+        step.getAvoidStarImport().set(false);
+        step.getRemoveIllegalImports().set(false);
+        step.getRemoveRedundantImports().set(false);
+        step.getRemoveUnusedImports().set(true);
+
+        String source = """
+                package test;
+
+                import java.util.List;
+                import java.util.Set;
+
+                /** {@link List} */
+                class Example {}
+                """;
+        String expected = source.replace("import java.util.Set;\n", "");
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void expandsWildcardImportsUsedOnlyInJavadoc() {
+        CheckstyleImportLintStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
+        step.getAvoidStarImport().set(true);
+        step.getRemoveIllegalImports().set(false);
+        step.getRemoveRedundantImports().set(false);
+        step.getRemoveUnusedImports().set(true);
+
+        String source = """
+                package test;
+
+                import java.util.*;
+
+                /** {@link List} and {@link Map.Entry} */
+                class Example {}
+                """;
+        String expected = source.replace("import java.util.*;", "import java.util.List;\nimport java.util.Map;");
+
+        String formatted = step.formatter().format("Example.java", source);
+        assertEquals(expected, formatted);
+        assertEquals(expected, step.formatter().format("Example.java", formatted));
+    }
+
+    @Test
     void keepsUsedImportsWhenRemovingUnusedImports() {
         CheckstyleImportLintStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleImportLintStep.class, STEP_NAME);
         step.getAvoidStarImport().set(false);

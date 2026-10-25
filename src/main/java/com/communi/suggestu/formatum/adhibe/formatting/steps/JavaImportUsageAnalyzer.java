@@ -1,8 +1,19 @@
 package com.communi.suggestu.formatum.adhibe.formatting.steps;
 
+import com.sun.source.doctree.DocCommentTree;
+import com.sun.source.doctree.ReferenceTree;
+import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.PackageTree;
+import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
+import com.sun.source.util.DocTreePath;
+import com.sun.source.util.DocTreePathScanner;
+import com.sun.source.util.DocTrees;
 import com.sun.source.util.JavacTask;
+import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 
@@ -10,6 +21,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
@@ -29,9 +41,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Uses javac's public Tree API to extract import usage from source text.
+ * Uses javac's public Tree and DocTrees APIs to extract import usage from source text and Javadoc.
  * This stays language-level compatible with the running JDK (including Java 25).
  */
 final class JavaImportUsageAnalyzer {
@@ -76,7 +90,7 @@ final class JavaImportUsageAnalyzer {
                 }
 
                 Trees trees = Trees.instance(task);
-                UsageScanner scanner = new UsageScanner(trees);
+                UsageScanner scanner = new UsageScanner(trees, DocTrees.instance(task), task.getElements());
                 scanner.scan(unit, null);
                 return AnalysisResult.available(scanner.toImportUsage(), formattedDiagnostics);
             }
@@ -134,27 +148,107 @@ final class JavaImportUsageAnalyzer {
     }
 
     private static final class UsageScanner extends TreePathScanner<Void, Void> {
+        private static final Pattern TYPE_ROOT = Pattern.compile(
+                "^\\s*([\\p{javaJavaIdentifierStart}][\\p{javaJavaIdentifierPart}]*)");
         private final Trees trees;
+        private final DocTrees docTrees;
+        private final Elements elements;
         private final Set<String> typeImportTargets = new LinkedHashSet<>();
         private final Map<String, LinkedHashSet<String>> topLevelTypesByPackage = new LinkedHashMap<>();
         private final Map<String, LinkedHashSet<String>> staticMembersByOwner = new LinkedHashMap<>();
 
-        private UsageScanner(Trees trees) {
+        private UsageScanner(Trees trees, DocTrees docTrees, Elements elements) {
             this.trees = trees;
+            this.docTrees = docTrees;
+            this.elements = elements;
+        }
+
+        @Override
+        public Void scan(Tree tree, Void unused) {
+            if (tree instanceof CompilationUnitTree || tree instanceof ClassTree
+                    || tree instanceof MethodTree || tree instanceof VariableTree || tree instanceof PackageTree) {
+                TreePath path = tree instanceof CompilationUnitTree unit
+                        ? new TreePath(unit)
+                        : new TreePath(getCurrentPath(), tree);
+                DocCommentTree comment = docTrees.getDocCommentTree(path);
+                if (comment != null) {
+                    new DocTreePathScanner<Void, Void>() {
+                        @Override
+                        public Void visitReference(ReferenceTree reference, Void unused) {
+                            trackDocReference(reference.getSignature(), getCurrentPath());
+                            return super.visitReference(reference, unused);
+                        }
+                    }.scan(new DocTreePath(path, comment), null);
+                }
+            }
+            return super.scan(tree, unused);
+        }
+
+        private void trackDocReference(String signature, DocTreePath path) {
+            int memberStart = signature.indexOf('#');
+            int parametersStart = signature.indexOf('(');
+            int qualifierEnd = memberStart >= 0 ? memberStart
+                    : parametersStart >= 0 ? parametersStart : signature.length();
+            trackDocType(signature.substring(0, qualifierEnd), path);
+            if (parametersStart >= 0 && signature.endsWith(")")) {
+                for (String parameter : signature.substring(parametersStart + 1, signature.length() - 1).split(",")) {
+                    trackDocType(parameter, path);
+                }
+            }
+        }
+
+        private void trackDocType(String spelling, DocTreePath path) {
+            Matcher matcher = TYPE_ROOT.matcher(spelling);
+            if (!matcher.find()) {
+                return;
+            }
+            String root = matcher.group(1);
+            // Only the first component needs an import: Map.Entry needs Map, java.util.Map needs none.
+            // Resolve it independently so parameter types and broken member links still retain their imports.
+            ReferenceTree rootReference = docTrees.getDocTreeFactory().newReferenceTree(root);
+            DocCommentTree rootComment = docTrees.getDocTreeFactory().newDocCommentTree(List.of(rootReference), List.of());
+            DocTreePath rootPath = new DocTreePath(new DocTreePath(path.getTreePath(), rootComment), rootReference);
+            Element element = docTrees.getElement(rootPath);
+            if (!(element instanceof TypeElement typeElement)) {
+                return;
+            }
+            trackType(typeElement);
+            for (var importTree : path.getTreePath().getCompilationUnit().getImports()) {
+                String target = importTree.getQualifiedIdentifier().toString();
+                int lastDot = target.lastIndexOf('.');
+                String owner = target.substring(0, lastDot);
+                String importedName = target.substring(lastDot + 1);
+                if (importedName.equals(root)) {
+                    if (importTree.isStatic()) {
+                        staticMembersByOwner.computeIfAbsent(owner, ignored -> new LinkedHashSet<>()).add(root);
+                    } else {
+                        typeImportTargets.add(target);
+                    }
+                } else if (importTree.isStatic() && importedName.equals("*")) {
+                    TypeElement ownerElement = elements.getTypeElement(owner);
+                    if (ownerElement != null && elements.getAllMembers(ownerElement).contains(typeElement)) {
+                        staticMembersByOwner.computeIfAbsent(owner, ignored -> new LinkedHashSet<>()).add(root);
+                    }
+                }
+            }
+        }
+
+        private void trackType(TypeElement typeElement) {
+            String target = typeElement.getQualifiedName().toString();
+            if (!target.isBlank()) {
+                typeImportTargets.add(target);
+                if (isTopLevel(typeElement)) {
+                    String packageName = packageName(typeElement);
+                    topLevelTypesByPackage.computeIfAbsent(packageName, ignored -> new LinkedHashSet<>()).add(target);
+                }
+            }
         }
 
         @Override
         public Void visitIdentifier(IdentifierTree node, Void unused) {
             Element element = trees.getElement(getCurrentPath());
             if (element instanceof TypeElement typeElement) {
-                String target = typeElement.getQualifiedName().toString();
-                if (!target.isBlank()) {
-                    typeImportTargets.add(target);
-                    if (isTopLevel(typeElement)) {
-                        String packageName = packageName(typeElement);
-                        topLevelTypesByPackage.computeIfAbsent(packageName, ignored -> new LinkedHashSet<>()).add(target);
-                    }
-                }
+                trackType(typeElement);
             } else if (isStaticMember(element)) {
                 TypeElement owner = ownerType(element);
                 if (owner != null) {
@@ -184,14 +278,7 @@ final class JavaImportUsageAnalyzer {
             if (type instanceof javax.lang.model.type.DeclaredType declared) {
                 Element typeElement = declared.asElement();
                 if (typeElement instanceof TypeElement te) {
-                    String target = te.getQualifiedName().toString();
-                    if (!target.isBlank()) {
-                        typeImportTargets.add(target);
-                        if (isTopLevel(te)) {
-                            String packageName = packageName(te);
-                            topLevelTypesByPackage.computeIfAbsent(packageName, ignored -> new LinkedHashSet<>()).add(target);
-                        }
-                    }
+                    trackType(te);
                 }
             }
         }
