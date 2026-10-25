@@ -235,7 +235,7 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
         return (fileName, text) -> {
             String result = inner.format(fileName, text);
             if (result == null || result.equals(text)) {
-                return result;
+                return text;
             }
             List<Integer> changedLines = TextFormattingUtils.findChangedLineNumbers(text, result);
             if (changedLines.isEmpty()) {
