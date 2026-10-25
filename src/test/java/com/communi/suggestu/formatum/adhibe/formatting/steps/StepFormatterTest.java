@@ -795,6 +795,65 @@ class StepFormatterTest {
     }
 
     @Test
+    void genericMethodInvocationDoesNotAddSpaceAfterClosingAngles() {
+        CheckstyleGenericWhitespaceStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleGenericWhitespaceStep.class, STEP_NAME);
+
+        String source = "\treturn RecordCodecBuilder.<Map.Entry<K, V>>create(instance -> instance);\n";
+        String expected = "\treturn RecordCodecBuilder.<Map.Entry<K, V>>create(instance -> instance);\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void genericMethodInvocationStripsSpaceAfterClosingAnglesWhenFollowedByMethod() {
+        CheckstyleGenericWhitespaceStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleGenericWhitespaceStep.class, STEP_NAME);
+
+        // Input has spaces between generic method invocation closers and method names —
+        // the algorithm strips them because the < is preceded by a dot.
+        String source = "\treturn RecordCodecBuilder.<Map.Entry<K, V>> create(instance -> instance);\n"
+                + "\tFoo.<Bar.Baz> method();\n"
+                + "\tList.<String> of();\n"
+                + "\tBar.<T extends Comparable<T>> compute(1, 2);\n";
+        String expected = "\treturn RecordCodecBuilder.<Map.Entry<K, V>>create(instance -> instance);\n"
+                + "\tFoo.<Bar.Baz>method();\n"
+                + "\tList.<String>of();\n"
+                + "\tBar.<T extends Comparable<T>>compute(1, 2);\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void genericMethodInvocationWithNestedGenericsDoesNotAddSpace() {
+        CheckstyleGenericWhitespaceStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleGenericWhitespaceStep.class, STEP_NAME);
+
+        String source = "\tFoo.<Bar.Baz>method();\n"
+                + "\tBar.<T extends Comparable<T>>compute(1, 2);\n"
+                + "\tBaz.<Map<String, List<Integer>>>factory();\n";
+        String expected = "\tFoo.<Bar.Baz>method();\n"
+                + "\tBar.<T extends Comparable<T>>compute(1, 2);\n"
+                + "\tBaz.<Map<String, List<Integer>>>factory();\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void genericWhitespaceDoesNotTreatComparisonOperatorsAsGenerics() {
+        CheckstyleGenericWhitespaceStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleGenericWhitespaceStep.class, STEP_NAME);
+
+        // Comparison operators must be left alone — they are not generics.
+        String source = "\treturn v.x() < 0 ? 0 : v.x();\n"
+                + "\treturn v.y() >= 1 ? 0 : v.y();\n"
+                + "\tint a = value << 3;\n"
+                + "\tint b = value >> 1;\n"
+                + "\tboolean cond = left < right;\n"
+                + "\tint result = a << 2 + b >> 1;\n";
+        String expected = "\treturn v.x() < 0 ? 0 : v.x();\n"
+                + "\treturn v.y() >= 1 ? 0 : v.y();\n"
+                + "\tint a = value << 3;\n"
+                + "\tint b = value >> 1;\n"
+                + "\tboolean cond = left < right;\n"
+                + "\tint result = a << 2 + b >> 1;\n";
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
     void appliesCommentsIndentationRules() {
         CheckstyleCommentsIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleCommentsIndentationStep.class, STEP_NAME);
 
