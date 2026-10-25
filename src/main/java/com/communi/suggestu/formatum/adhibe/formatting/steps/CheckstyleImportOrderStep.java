@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class CheckstyleImportOrderStep extends FormattingStep {
-    private static final Pattern IMPORT_PATTERN = Pattern.compile("^import\\s+(static\\s+)?([^;\\s]+)\\s*;(.*)$");
+    private static final Pattern IMPORT_PATTERN = Pattern.compile("^\\s*import\\s+(static\\s+)?([^;\\s]+)\\s*;(.*)$");
 
     @Inject
     public CheckstyleImportOrderStep() {

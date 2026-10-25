@@ -1955,6 +1955,100 @@ class StepFormatterTest {
     }
 
     @Test
+    void importOrderSeparatesGroupsWithoutExistingBlankLine() {
+        // Regression test: when imports from different groups have no blank line
+        // between them, the formatter MUST insert one (separated=true).
+        CheckstyleImportOrderStep step = ProjectBuilder.builder().build()
+                .getObjects().newInstance(CheckstyleImportOrderStep.class, STEP_NAME);
+        step.getGroups().set(java.util.List.of("java", "javax", "*", "net.minecraft", "net.fabricmc"));
+        step.getSeparated().set(true);
+        step.getOption().set("top");
+        step.getSortStaticImportsAlphabetically().set(true);
+
+        String source = "package test;\n\n"
+                + "import java.lang.annotation.Annotation;\n"
+                + "import java.lang.reflect.Field;\n"
+                + "import java.lang.reflect.InvocationTargetException;\n"
+                + "import java.lang.reflect.Modifier;\n"
+                + "import java.util.function.Function;\n"
+                + "import org.apache.logging.log4j.LogManager;\n"
+                + "import org.apache.logging.log4j.Logger;\n"
+                + "import org.jspecify.annotations.Nullable;\n"
+                + "\n"
+                + "class Example {}\n";
+        String result = step.formatter().format("Example.java", source);
+
+        // Verify: blank line must exist between the last java import and first org import
+        int javaFunctionLine = result.indexOf("import java.util.function.Function;");
+        int logManagerLine = result.indexOf("import org.apache.logging.log4j.LogManager;");
+        assertTrue(javaFunctionLine >= 0, "java.util.function.Function should be in output");
+        assertTrue(logManagerLine >= 0, "org.apache.logging.log4j.LogManager should be in output");
+        assertTrue(logManagerLine > javaFunctionLine, "java imports before org imports");
+
+        // There must be a blank line (empty string line) between them
+        String[] lines = result.split("\n", -1);
+        int javaLine = -1, logLine = -1;
+        for (int i = 0; i < lines.length; i++) {
+            String trimmed = lines[i].trim();
+            if (trimmed.equals("import java.util.function.Function;")) javaLine = i;
+            if (trimmed.equals("import org.apache.logging.log4j.LogManager;")) logLine = i;
+        }
+        assertTrue(javaLine >= 0 && logLine >= 0, "Both imports must be present");
+        // There should be at least one empty line between them
+        boolean foundBlankLine = false;
+        for (int i = javaLine + 1; i < logLine; i++) {
+            if (lines[i].trim().isEmpty()) {
+                foundBlankLine = true;
+                break;
+            }
+        }
+        assertTrue(foundBlankLine, "Expected blank line between java and org import groups");
+    }
+
+    @Test
+    void importOrderHandlesTabIndentedImports() {
+        // Regression test: when the LeadingWhitespaceToTabsStep has already converted
+        // leading spaces to tabs (producing \timport ...), the ImportOrder step must
+        // still match the import lines and insert blank lines between groups.
+        CheckstyleImportOrderStep step = ProjectBuilder.builder().build()
+                .getObjects().newInstance(CheckstyleImportOrderStep.class, STEP_NAME);
+        step.getGroups().set(java.util.List.of("java", "javax", "*", "net.minecraft", "net.fabricmc"));
+        step.getSeparated().set(true);
+        step.getOption().set("top");
+        step.getSortStaticImportsAlphabetically().set(true);
+
+        // Simulate output from LeadingWhitespaceToTabsStep: imports now start with tabs
+        String source = "package test;\n\n"
+                + "\timport java.lang.annotation.Annotation;\n"
+                + "\timport java.util.function.Function;\n"
+                + "\timport org.apache.logging.log4j.LogManager;\n"
+                + "\timport org.jspecify.annotations.Nullable;\n"
+                + "\n"
+                + "class Example {}\n";
+        String result = step.formatter().format("Example.java", source);
+
+        String[] lines = result.split("\n", -1);
+        int javaFunctionLine = -1, logManagerLine = -1;
+        for (int i = 0; i < lines.length; i++) {
+            String trimmed = lines[i].trim();
+            if (trimmed.equals("import java.util.function.Function;")) javaFunctionLine = i;
+            if (trimmed.equals("import org.apache.logging.log4j.LogManager;")) logManagerLine = i;
+        }
+        assertTrue(javaFunctionLine >= 0, "java.util.function.Function must be present");
+        assertTrue(logManagerLine >= 0, "org.apache.logging.log4j.LogManager must be present");
+        assertTrue(logManagerLine > javaFunctionLine, "java imports before org imports");
+
+        boolean foundBlankLine = false;
+        for (int i = javaFunctionLine + 1; i < logManagerLine; i++) {
+            if (lines[i].trim().isEmpty()) {
+                foundBlankLine = true;
+                break;
+            }
+        }
+        assertTrue(foundBlankLine, "Expected blank line between java and org import groups even with tab-indented imports");
+    }
+
+    @Test
     void javadocParagraphSkipsPForLastTagParagraph() {
         CheckstyleJavadocParagraphStep step =
                 ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleJavadocParagraphStep.class, STEP_NAME);

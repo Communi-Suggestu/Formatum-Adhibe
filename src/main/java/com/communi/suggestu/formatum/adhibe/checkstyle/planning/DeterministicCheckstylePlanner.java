@@ -128,11 +128,13 @@ public final class DeterministicCheckstylePlanner {
                 .map(String::trim)
                 .filter(it -> !it.isEmpty())
                 .toList();
+        // When no explicit groups are configured, apply sensible defaults
+        // (java, javax, *, net.minecraft, net.fabricmc) so import groups
+        // are always ordered and separated even without an explicit config.
         if (groups.isEmpty()) {
-            return null;
+            groups = java.util.List.of("java", "javax", "*", "net.minecraft", "net.fabricmc");
         }
-
-        boolean separated = module.property("separated").map(Boolean::parseBoolean).orElse(false);
+        boolean separated = module.property("separated").map(Boolean::parseBoolean).orElse(true);
         String option = module.property("option").orElse("under").toLowerCase(Locale.ROOT);
         boolean sortStatic = module.property("sortStaticImportsAlphabetically").map(Boolean::parseBoolean).orElse(false);
         return new ImportOrderGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), groups, separated, option, sortStatic, module.message().orElse(null));
