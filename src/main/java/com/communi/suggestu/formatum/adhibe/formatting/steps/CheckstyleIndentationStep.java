@@ -9,7 +9,8 @@ import org.gradle.api.tasks.Input;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
-import java.util.List;
+	import java.util.List;
+	import java.util.regex.Pattern;
 
 public abstract class CheckstyleIndentationStep extends FormattingStep
 {
@@ -36,6 +37,8 @@ public abstract class CheckstyleIndentationStep extends FormattingStep
     @Input
     public abstract Property<RegionFinder.ParseMode> getParseMode();
 
+    private static final Pattern CASE_LABEL = Pattern.compile("^case(?![A-Za-z0-9_])"); // excludes cases()/caseSensitive etc.
+
     @Override
     public FileFormatter formatter()
     {
@@ -61,6 +64,11 @@ public abstract class CheckstyleIndentationStep extends FormattingStep
             }
 
             int effectiveIndent = rootRegion.regionDepthAtStartOfLine(i);
+
+            if (CASE_LABEL.matcher(trimmed).matches())
+            {
+                effectiveIndent += getCaseIndent().getOrElse(0);
+            }
 
             if (inheritanceContinuationIndent >= 0 && !startsWithClosingBrace(trimmed))
             {

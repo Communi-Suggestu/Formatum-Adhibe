@@ -6,6 +6,8 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.SwitchExpressionTree;
+import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.SourcePositions;
@@ -97,6 +99,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 		private final Kind kind;
 		private boolean anonymous;
 		private boolean lambda;
+		private boolean switchBody;
+		private boolean enumConstantGroup;
 		private final List<Span> children = new ArrayList<>();
 
 		private Span(int start, int end, Kind kind) {
@@ -174,7 +178,8 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 					span.kind == Kind.STATEMENT || span.kind == Kind.ANNOTATION || span.kind == Kind.ENUM_CONSTANT,
 					span.kind == Kind.CONTROL,
 					span.anonymous, span.lambda, content.substring(span.start, span.end),
-					new RegionOffset(content, span.start), new RegionOffset(content, span.end), debugMode);
+					new RegionOffset(content, span.start), new RegionOffset(content, span.end), debugMode,
+					span.kind == Kind.BLOCK && span.switchBody, span.enumConstantGroup);
 		}
 
 		@Override
@@ -191,7 +196,10 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 							.filter(member -> member instanceof VariableTree variable && isEnumConstant(variable))
 							.toList();
 					if (!constants.isEmpty()) {
-						add(start(constants.getFirst()), end(constants.getLast()), Kind.STATEMENT);
+						Span group = add(start(constants.getFirst()), end(constants.getLast()), Kind.STATEMENT);
+						if (group != null) {
+							group.enumConstantGroup = true;
+						}
 					}
 				}
 			}
@@ -200,12 +208,17 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 
 		@Override
 		public Void visitBlock(BlockTree tree, Void unused) {
-			Span block = addBody(tree);
-			if (block != null) {
-				block.lambda = getCurrentPath().getParentPath().getLeaf() instanceof LambdaExpressionTree;
+		Span block = addBody(tree);
+		if (block != null) {
+			Tree parent = getCurrentPath().getParentPath().getLeaf();
+			block.lambda = parent instanceof LambdaExpressionTree;
+			// A switch's body is itself a BlockTree caught here. Mark it so that case-label lines can skip this block's +1 indentation.
+			if (parent instanceof SwitchTree || parent instanceof SwitchExpressionTree) {
+				block.switchBody = true;
 			}
-			return super.visitBlock(tree, unused);
 		}
+		return super.visitBlock(tree, unused);
+	}
 
 		@Override
 		public Void scan(Tree tree, Void unused) {
@@ -219,7 +232,13 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 					default -> {}
 				}
 				switch (tree.getKind()) {
-					case SWITCH, SWITCH_EXPRESSION, NEW_ARRAY, MODULE -> addBody(tree);
+					case SWITCH, SWITCH_EXPRESSION -> {
+						Span body = addBody(tree);
+						if (body != null) {
+							body.switchBody = true;
+						}
+					}
+					case NEW_ARRAY, MODULE -> addBody(tree);
 					default -> {}
 				}
 			}

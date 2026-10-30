@@ -595,4 +595,77 @@ class FormattingMechanicsRegressionTest {
         String formatted = indentation.formatter().format("Example.java", afterWhitespace);
         assertEquals(expected, formatted);
     }
+
+    @Test
+    void reindentsClassicSwitchCaseLabelBelowSwitchKeyword() {
+        CheckstyleIndentationStep step = indentationStep();
+
+        String source = "class Example {\n"
+                + "\tvoid run(int axis) {\n"
+                + "\t\tswitch (axis) {\n"
+                + "\t\t\tcase AXIS\n"
+                + "\t\t\t: return new Vec3(vector3d.x());\n"
+                + "\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tvoid run(int axis) {\n"
+                + "\t\tswitch (axis) {\n"
+                + "\t\tcase AXIS\n"
+                + "\t\t\t: return new Vec3(vector3d.x());\n"
+                + "\t\t}\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void reindentsArrowSwitchCaseLabelBelowSwitchKeyword() {
+        CheckstyleIndentationStep step = indentationStep();
+
+        String source = "class Example {\n"
+                + "\tint value(int y) {\n"
+                + "\t\treturn switch (y) {\n"
+                + "\t\t\tcase Y -> 1;\n"
+                + "\t\t\tdefault -> 2;\n"
+                + "\t\t};\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tint value(int y) {\n"
+                + "\t\treturn switch (y) {\n"
+                + "\t\tcase Y -> 1;\n"
+                + "\t\t\tdefault -> 2;\n"
+                + "\t\t};\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void reindentsWrappedStringConcatStatementContinuations() {
+        CheckstyleIndentationStep step = indentationStep();
+
+        String source = "class Example {\n"
+                + "\tpublic String toString() {\n"
+                + "\t\treturn \"X\" + a +\n"
+                + "\t\t\"Y\" + b +\n"
+                + "\t\t\"}\";\n"
+                + "\t}\n"
+                + "}\n";
+
+        String expected = "class Example {\n"
+                + "\tpublic String toString() {\n"
+                + "\t\treturn \"X\" + a +\n"
+                + "\t\t\t\"Y\" + b +\n"
+                + "\t\t\t\"}\";\n"
+                + "\t}\n"
+                + "}\n";
+
+        assertEquals(expected, step.formatter().format("Example.java", source));
+    }
 }

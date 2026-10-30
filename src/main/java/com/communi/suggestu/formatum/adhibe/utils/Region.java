@@ -19,7 +19,9 @@ public record Region(
 		String[] lines,
 		RegionOffset start,
 		RegionOffset end,
-		RegionFinder.DebugMode debugMode) {
+		RegionFinder.DebugMode debugMode,
+		boolean isSwitchBody,
+		boolean enumConstantGroup) {
 
 	public Region(
 			final Region[] children,
@@ -33,7 +35,9 @@ public record Region(
 			final String content,
 			final RegionOffset start,
 			final RegionOffset end,
-			final RegionFinder.DebugMode debugMode) {
+			final RegionFinder.DebugMode debugMode,
+			final boolean isSwitchBody,
+			final boolean enumConstantGroup) {
 		this(
 				children,
 				isParameterBlock,
@@ -47,7 +51,9 @@ public record Region(
 				splitLinesPreservingTrailingNewLines(content),
 				start,
 				end,
-				debugMode
+				debugMode,
+				isSwitchBody,
+				enumConstantGroup
 		);
 	}
 
@@ -103,6 +109,28 @@ public record Region(
 
 	private boolean isMultiLineMethodStatement() {
 		return isStatement() && hasMultipleParameterChildren() && isMultiLine();
+	}
+
+	private boolean hasParameterChildrenSpanningLines() {
+		return Arrays.stream(children()).anyMatch(Region::isParameterBlock);
+	}
+
+	private boolean isWrappedExpressionStatement() {
+		return isStatement() && isMultiLine()
+				&& !isMultiLineBrokenAssignmentStatement()
+				&& !hasParameterChildrenSpanningLines()
+				&& !enumConstantGroup;
+	}
+	private boolean hasNestedCodeBlock() {
+		for (Region child : children()) {
+			if (child.isCodeBlock() || child.isControl() || child.isLambda()) {
+				return true;
+			}
+			if (child.hasNestedCodeBlock()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private int inLineStartOfLineIndex(int lineIndex) {
@@ -192,9 +220,19 @@ public record Region(
 					depthReasons.add("Multi-line method statement continuation depth increase 2");
 				}
 			}
+			else if (region.isWrappedExpressionStatement()
+					&& !region.hasNestedCodeBlock()
+					&& (previous == null || !previous.isParameterBlock())
+					&& region.inRegionLineOffset(lineIndex) > 0
+					&& !region.isStart(lineIndex)) {
+				depth++; // +1 tab = basicOffset unit for wrapped expr-statement continuation lines
+				if (debugMode == RegionFinder.DebugMode.RegionDepthTracking)
+					depthReasons.add("Wrapped expression-statement continuation depth increase");
+			}
 
 			//Any code block we are in also gets us one
-			if (region.isCodeBlock() && !region.isIsolatedStartOrEndOperand(lineIndex)) {
+			if (region.isCodeBlock() && !region.isIsolatedStartOrEndOperand(lineIndex)
+					&& !(isCaseLabelAt(lineIndex) && region.isSwitchBody())) {
 				depth++;
 				if (debugMode == RegionFinder.DebugMode.RegionDepthTracking) {
 					depthReasons.add("Code block depth increase");
@@ -222,6 +260,12 @@ public record Region(
 
 	private static final Pattern NOT_CLOSING_OPERANDS = Pattern.compile("[^});\\]]");
 	private static final Pattern CLOSING_OPERANDS     = Pattern.compile("[});\\]]");
+
+	private static final Pattern CASE_LABEL = Pattern.compile("^case(?![A-Za-z0-9_])"); // excludes cases()/caseSensitive etc.
+
+	private boolean isCaseLabelAt(final int lineIndex) {
+		return CASE_LABEL.matcher(getContentLine(lineIndex)).find();
+	}
 
 	private boolean isNotClosingOperandsOnly(final int lineIndex) {
 		var contentLine = getContentLine(lineIndex);

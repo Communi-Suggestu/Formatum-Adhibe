@@ -32,6 +32,7 @@ import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleSingleSpa
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleGenericWhitespaceStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleArrayTypeStyleStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleRedundantModifierStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleModifierOrderStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleCommentsIndentationStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleJavadocParagraphStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CollapseConsecutiveBlankLinesStep;
@@ -143,6 +144,8 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             ProblemId.create("redundant-import", "Redundant import", FORMATTING_GROUP);
     private static final ProblemId ID_UNUSED_IMPORT =
             ProblemId.create("unused-import", "Unused import", FORMATTING_GROUP);
+    private static final ProblemId ID_MODIFIER_ORDER =
+            ProblemId.create("modifier-order", "Modifiers out of canonical JLS order", FORMATTING_GROUP);
     private static final ProblemId ID_HINT =
             ProblemId.create("hint-fix", "Formatting hint applied", HINTS_GROUP);
     // ─────────────────────────────────────────────────────────────────────────
@@ -298,6 +301,7 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             case ILLEGAL_IMPORT -> ID_ILLEGAL_IMPORT;
             case REDUNDANT_IMPORT -> ID_REDUNDANT_IMPORT;
             case UNUSED_IMPORT -> ID_UNUSED_IMPORT;
+            case MODIFIER_ORDER -> ID_MODIFIER_ORDER;
         };
     }
 
@@ -380,7 +384,7 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
                 CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
                 CheckstyleIndentationStep step = getObjects().newInstance(CheckstyleIndentationStep.class, generatedName);
                 step.getBasicOffset().set(module == null ? 4 : module.property("basicOffset").map(Integer::parseInt).orElse(4));
-                step.getCaseIndent().set(module == null ? 4 : module.property("caseIndent").map(Integer::parseInt).orElse(4));
+                step.getCaseIndent().set(module == null ? 0 : module.property("caseIndent").map(Integer::parseInt).orElse(0));
                 step.getThrowsIndent().set(module == null ? 4 : module.property("throwsIndent").map(Integer::parseInt).orElse(4));
                 step.getArrayInitIndent().set(module == null ? 4 : module.property("arrayInitIndent").map(Integer::parseInt).orElse(4));
                 step.getLineWrappingIndentation().set(module == null ? 4 : module.property("lineWrappingIndentation").map(Integer::parseInt).orElse(4));
@@ -444,6 +448,7 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
                     step.getIllegalImportsReason().set(module.message().orElse("Unknown reason for illegal import!"));
                 });
             }
+            case MODIFIER_ORDER -> getObjects().newInstance(CheckstyleModifierOrderStep.class, generatedName).formatter();
             default -> throw new IllegalStateException("Unsupported simple step kind: " + spec.kind());
         };
     }

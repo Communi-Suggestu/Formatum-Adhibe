@@ -80,6 +80,7 @@ public final class DeterministicCheckstylePlanner {
             case "RedundantImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.REDUNDANT_IMPORT, module.message().orElse(null));
             case "UnusedImport", "UnusedImports" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.UNUSED_IMPORT, module.message().orElse(null));
             case "ImportOrder" -> planImportOrder(module, prefix, stepIndex);
+            case "ModifierOrder" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.MODIFIER_ORDER, module.message().orElse(null));
             default -> null;
         };
     }

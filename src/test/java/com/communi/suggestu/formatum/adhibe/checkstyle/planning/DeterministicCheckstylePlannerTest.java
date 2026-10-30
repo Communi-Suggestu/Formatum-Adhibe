@@ -16,7 +16,7 @@ class DeterministicCheckstylePlannerTest {
 
         PlanningResult result = new DeterministicCheckstylePlanner().plan(root, "checkstyle");
 
-        assertEquals(34, result.steps().size());
+        assertEquals(35, result.steps().size());
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.ORDER_IMPORTS));
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.CONVERT_LEADING_SPACES_TO_TABS));
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.INSERT_BLANK_LINE_BEFORE_INDENTED_BLOCK));
@@ -38,6 +38,7 @@ class DeterministicCheckstylePlannerTest {
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.REDUNDANT_MODIFIER));
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.COMMENTS_INDENTATION));
         assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.JAVADOC_PARAGRAPH));
+        assertTrue(result.steps().stream().anyMatch(step -> step.kind() == GeneratedStepKind.MODIFIER_ORDER));
     }
 }
 
