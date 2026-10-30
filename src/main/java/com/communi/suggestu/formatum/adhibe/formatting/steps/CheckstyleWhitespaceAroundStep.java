@@ -22,6 +22,7 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
 
     private String apply(String text) {
         String result = text;
+        result = normalizeMultiplicativeOperators(result);
         result = normalizeShiftOperatorsInExpressions(result);
         result = normalizeRelationalOperators(result);
         result = normalizeTernaryOperators(result);
@@ -41,6 +42,101 @@ public abstract class CheckstyleWhitespaceAroundStep extends FormattingStep {
             lines[i] = normalizeShiftOperatorsInLine(lines[i]);
         }
         return String.join("\n", lines);
+    }
+
+    /**
+     * Spaces the multiplicative operators ({@code *}, {@code *=}, {@code %}, {@code %=}) so they satisfy Checkstyle's
+     * WhitespaceAround rule. The scan only touches code, running outside of comments, string literals and char
+     * literals, so a {@code *} inside a Javadoc or block/line comment is never modified.
+     */
+    private static String normalizeMultiplicativeOperators(String text) {
+        StringBuilder out = new StringBuilder(text.length() + 16);
+        int i = 0;
+        int n = text.length();
+        boolean inString = false;
+        boolean inChar = false;
+
+        while (i < n) {
+            char c = text.charAt(i);
+
+            if (!inString && !inChar && c == '/' && i + 1 < n && text.charAt(i + 1) == '/') {
+                int eol = text.indexOf('\n', i);
+                if (eol < 0) {
+                    out.append(text, i, n);
+                    i = n;
+                } else {
+                    out.append(text, i, eol);
+                    i = eol;
+                }
+                continue;
+            }
+
+            if (!inString && !inChar && c == '/' && i + 1 < n && text.charAt(i + 1) == '*') {
+                int close = findBlockCommentEnd(text, i);
+                out.append(text, i, close);
+                i = close;
+                continue;
+            }
+
+            if (!inChar && c == '"') {
+                inString = !inString;
+                out.append(c);
+                i++;
+                continue;
+            }
+
+            if (!inString && c == '\'') {
+                inChar = !inChar;
+                out.append(c);
+                i++;
+                continue;
+            }
+
+            if (inString || inChar) {
+                out.append(c);
+                i++;
+                continue;
+            }
+
+            char next = i + 1 < n ? text.charAt(i + 1) : '\0';
+            if ((c == '*' || c == '%') && next == '=') {
+                appendSpacedOperator(out, text, i, 2);
+                i += 2;
+                continue;
+            }
+
+            if (c == '*' || c == '%') {
+                appendSpacedOperator(out, text, i, 1);
+                i++;
+                continue;
+            }
+
+            out.append(c);
+            i++;
+        }
+
+        return out.toString();
+    }
+
+    private static void appendSpacedOperator(StringBuilder out, String text, int start, int length) {
+        char before = start > 0 ? text.charAt(start - 1) : '\0';
+        boolean spaceBefore = start == 0 || Character.isWhitespace(before);
+        int afterIndex = start + length;
+        char after = afterIndex < text.length() ? text.charAt(afterIndex) : '\0';
+        boolean spaceAfter = afterIndex >= text.length() || Character.isWhitespace(after);
+
+        if (!spaceBefore) {
+            out.append(' ');
+        }
+        out.append(text, start, start + length);
+        if (!spaceAfter) {
+            out.append(' ');
+        }
+    }
+
+    private static int findBlockCommentEnd(String text, int start) {
+        int close = text.indexOf("*/", start + 2);
+        return close < 0 ? text.length() : close + 2;
     }
 
     private static String normalizeShiftOperatorsInLine(String line) {

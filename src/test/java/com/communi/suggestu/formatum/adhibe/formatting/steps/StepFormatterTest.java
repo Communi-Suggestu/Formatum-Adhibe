@@ -781,6 +781,75 @@ class StepFormatterTest {
     }
 
     @Test
+    void spacesMultiplicativeOperatorsInCode() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+
+        assertEquals("int result = 2 * Math.PI / 360d;\n", step.formatter().format("Example.java", "int result = 2*Math.PI / 360d;\n"));
+        assertEquals("int r = a % b + c * d;\n", step.formatter().format("Example.java", "int r = a%b + c*d;\n"));
+    }
+
+    @Test
+    void spacesMultiplicationWhenOnlyOneSideNeedsIt() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+
+        assertEquals("int x = a * b;\n", step.formatter().format("Example.java", "int x = a*b;\n"));
+        assertEquals("int x = a * b;\n", step.formatter().format("Example.java", "int x = a *b;\n"));
+        assertEquals("int x = a * b;\n", step.formatter().format("Example.java", "int x = a* b;\n"));
+    }
+
+    @Test
+    void spacesCompoundAssignmentOperators() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+
+        assertEquals("b *= c;\n", step.formatter().format("Example.java", "b*=c;\n"));
+        assertEquals("a %= b;\n", step.formatter().format("Example.java", "a%=b;\n"));
+        // Already-spaced compound assignments are left untouched.
+        assertEquals("q *= 2;\ny %= 3;\n", step.formatter().format("Example.java", "q *= 2;\ny %= 3;\n"));
+    }
+
+    @Test
+    void spacesMultiplicationAfterJavadocButPreservesItsAsterisks() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+
+        String source = "/** Doc.\n */\nint x = a*b;\n";
+        assertEquals("/** Doc.\n */\nint x = a * b;\n", step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void doesNotModifyJavadocAsterisks() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+
+        String source = "/** Multiply things.\n"
+                + " * Also a*b stays literal here.\n"
+                + " */\n";
+        assertEquals(source, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void doesNotModifyBlockOrLineComments() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+
+        assertEquals("int x = 1; /* a*b */\n", step.formatter().format("Example.java", "int x = 1; /* a*b */\n"));
+        assertEquals("int x = 1;\n// multiply a*b here\n", step.formatter().format("Example.java", "int x = 1;\n// multiply a*b here\n"));
+    }
+
+    @Test
+    void doesNotModifyStringsOrCharLiterals() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+
+        assertEquals("String s = \"foo*bar\";\n", step.formatter().format("Example.java", "String s = \"foo*bar\";\n"));
+        assertEquals("char c = '*';\n", step.formatter().format("Example.java", "char c = '*';\n"));
+    }
+
+    @Test
+    void doesNotSplitDivisionOperator() {
+        CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
+
+        // Division is intentionally excluded from this project's WhitespaceAround tokens.
+        assertEquals("int q = a/b;\n", step.formatter().format("Example.java", "int q = a/b;\n"));
+    }
+
+    @Test
     void operatorWrapDoesNotSplitLambdaArrow() {
         CheckstyleOperatorWrapStep stepNl = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleOperatorWrapStep.class, STEP_NAME);
         stepNl.getOption().set("nl");
