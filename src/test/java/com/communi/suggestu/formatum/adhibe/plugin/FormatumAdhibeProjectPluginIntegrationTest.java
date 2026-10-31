@@ -533,6 +533,181 @@ class FormatumAdhibeProjectPluginIntegrationTest
     }
 
     @Test
+    void pluginAppliesJavadocStyleWithConfiguredScopeAndSuppression() throws IOException {
+        Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
+        Files.writeString(projectDirectory.resolve("build.gradle"), """
+                plugins {
+                    id 'java'
+                    id 'com.communi.suggestu.formatum.adhibe'
+                }
+                immaculate {
+                    workflows.register('java') {
+                        java()
+                        checkstyle('checkstyle') {
+                            checkstyleConfig = file('checkstyle.xml')
+                        }
+                    }
+                }
+                """);
+        Files.writeString(projectDirectory.resolve("checkstyle.xml"), """
+                <module name="Checker">
+                    <module name="TreeWalker">
+                        <module name="SuppressionCommentFilter">
+                            <property name="offCommentFormat" value="CHECKSTYLE.OFF"/>
+                            <property name="onCommentFormat" value="CHECKSTYLE.ON"/>
+                        </module>
+                        <module name="JavadocStyle">
+                            <property name="scope" value="public"/>
+                            <property name="endOfSentenceFormat" value="[.]$"/>
+                        </module>
+                    </module>
+                </module>
+                """);
+        Path sourceFile = projectDirectory.resolve("src/main/java/test/Example.java");
+        Files.createDirectories(sourceFile.getParent());
+        String source = """
+                package test;
+                /** Public description */
+                public class Example {
+                    /** Private description */
+                    private void internal() {}
+                    // CHECKSTYLE.OFF
+                    /** Suppressed description */
+                    public void suppressed() {}
+                    // CHECKSTYLE.ON
+                    /** Public method */
+                    public void run() {}
+                }
+                """;
+        Files.writeString(sourceFile, source);
+        var result = GradleRunner.create().withProjectDir(projectDirectory.toFile()).withPluginClasspath()
+                .withArguments("javaImmaculateApply", "--stacktrace").build();
+        assertEquals(SUCCESS, Objects.requireNonNull(result.task(":javaImmaculateApply")).getOutcome());
+        assertEquals(source.replace("Public description */", "Public description. */")
+                .replace("Public method */", "Public method. */"), Files.readString(sourceFile));
+    }
+
+    @Test
+    void pluginSimplifiesBooleanReturnsAndHonorsSuppression() throws IOException {
+        Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
+        Files.writeString(projectDirectory.resolve("build.gradle"), """
+                plugins {
+                    id 'java'
+                    id 'com.communi.suggestu.formatum.adhibe'
+                }
+                immaculate {
+                    workflows.register('java') {
+                        java()
+                        checkstyle('checkstyle') {
+                            checkstyleConfig = file('checkstyle.xml')
+                        }
+                    }
+                }
+                """);
+        Files.writeString(projectDirectory.resolve("checkstyle.xml"), """
+                <module name="Checker">
+                    <module name="TreeWalker">
+                        <module name="SuppressionCommentFilter">
+                            <property name="offCommentFormat" value="CHECKSTYLE.OFF"/>
+                            <property name="onCommentFormat" value="CHECKSTYLE.ON"/>
+                        </module>
+                        <module name="SimplifyBooleanReturn"/>
+                    </module>
+                </module>
+                """);
+        Path sourceFile = projectDirectory.resolve("src/main/java/test/Example.java");
+        Files.createDirectories(sourceFile.getParent());
+        String source = """
+                package test;
+                public class Example {
+                    // CHECKSTYLE.OFF
+                    boolean suppressed(boolean value) { if (value) return true; else return false; }
+                    // CHECKSTYLE.ON
+                    boolean active(boolean value) { if (value) return false; else return true; }
+                }
+                """;
+        Files.writeString(sourceFile, source);
+        var result = GradleRunner.create().withProjectDir(projectDirectory.toFile()).withPluginClasspath()
+                .withArguments("javaImmaculateApply", "--stacktrace").build();
+        assertEquals(SUCCESS, Objects.requireNonNull(result.task(":javaImmaculateApply")).getOutcome());
+        assertEquals(source.replace("if (value) return false; else return true;", "return !(value);"),
+                Files.readString(sourceFile));
+    }
+
+    @Test
+    void pluginAppliesAnnotationLocationOptionsAndSuppression() throws IOException {
+        Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
+        Files.writeString(projectDirectory.resolve("build.gradle"), """
+                plugins {
+                    id 'java'
+                    id 'com.communi.suggestu.formatum.adhibe'
+                }
+                immaculate {
+                    workflows.register('java') {
+                        java()
+                        checkstyle('checkstyle') {
+                            checkstyleConfig = file('checkstyle.xml')
+                        }
+                    }
+                }
+                """);
+        Files.writeString(projectDirectory.resolve("checkstyle.xml"), """
+                <module name="Checker">
+                    <module name="TreeWalker">
+                        <module name="AnnotationLocation">
+                            <property name="allowSamelineSingleParameterlessAnnotation" value="false"/>
+                            <property name="allowSamelineParameterizedAnnotation" value="false"/>
+                            <property name="tokens" value="VARIABLE_DEF"/>
+                        </module>
+                    </module>
+                </module>
+                """);
+        Path sourceFile = projectDirectory.resolve("src/main/java/test/Example.java");
+        Files.createDirectories(sourceFile.getParent());
+        String source = """
+                package test;
+                import jdk.jfr.Name;
+                @Name("type") public class Example {
+                    @Deprecated public String value;
+                    @Name("active") public String active;
+                }
+                """;
+        Files.writeString(sourceFile, source);
+        var result = GradleRunner.create().withProjectDir(projectDirectory.toFile()).withPluginClasspath()
+                .withArguments("javaImmaculateApply", "--stacktrace").build();
+        assertEquals(SUCCESS, Objects.requireNonNull(result.task(":javaImmaculateApply")).getOutcome());
+        assertEquals(source.replace("@Deprecated public", "@Deprecated\n    public")
+                .replace("@Name(\"active\") public", "@Name(\"active\")\n    public"), Files.readString(sourceFile));
+        Path configuration = projectDirectory.resolve("checkstyle.xml");
+        Files.writeString(configuration, Files.readString(configuration).replace("<module name=\"AnnotationLocation\">", """
+                <module name="SuppressionCommentFilter">
+                    <property name="offCommentFormat" value="CHECKSTYLE.OFF"/>
+                    <property name="onCommentFormat" value="CHECKSTYLE.ON"/>
+                </module>
+                <module name="AnnotationLocation">
+                """));
+        String suppressed = """
+                package test;
+                import jdk.jfr.Name;
+                public class Example {
+                    // CHECKSTYLE.OFF
+                    @Name("suppressed")
+                        @Deprecated
+                    public String suppressed;
+                    // CHECKSTYLE.ON
+                    @Name("active")
+                        @Deprecated
+                    public String active;
+                }
+                """;
+        Files.writeString(sourceFile, suppressed);
+        GradleRunner.create().withProjectDir(projectDirectory.toFile()).withPluginClasspath()
+                .withArguments("javaImmaculateApply", "--stacktrace").build();
+        assertEquals(suppressed.replace("@Name(\"active\")\n        @Deprecated",
+                "@Name(\"active\")\n    @Deprecated"), Files.readString(sourceFile));
+    }
+
+    @Test
     void pluginRespectsSuppressionCommentFilterRanges() throws IOException {
         Files.writeString(projectDirectory.resolve("settings.gradle"), "rootProject.name = 'it-project'\n");
         Files.writeString(projectDirectory.resolve("build.gradle"), """
@@ -604,5 +779,3 @@ class FormatumAdhibeProjectPluginIntegrationTest
         assertTrue(formatted.contains("\tvoid run()"));
     }
 }
-
-

@@ -47,6 +47,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep
 
     private String apply(String text)
     {
+        text = JavaIndentationOwnership.normalizeSplitCaseLabels(text);
         List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
         int continuationTabs = Math.max(1, getLineWrappingIndentation().getOrElse(8) / Math.max(1, getBasicOffset().getOrElse(4)));
         int inheritanceContinuationIndent = -1;
@@ -87,7 +88,9 @@ public abstract class CheckstyleIndentationStep extends FormattingStep
             }
         }
 
-        return String.join("\n", lines);
+        return new JavaIndentationOwnership(getBasicOffset().getOrElse(4),
+                getLineWrappingIndentation().getOrElse(8), getThrowsIndent().getOrElse(4))
+                .apply(String.join("\n", lines));
     }
 
     private static boolean startsWithClosingBrace(String trimmed)
@@ -97,6 +100,7 @@ public abstract class CheckstyleIndentationStep extends FormattingStep
 
     private static boolean startsWrappedInheritanceList(String trimmed)
     {
-        return (trimmed.contains(" extends ") || trimmed.contains(" implements ")) && trimmed.endsWith(",");
+        return trimmed.endsWith(" extends") || trimmed.endsWith(" implements")
+                || (trimmed.contains(" extends ") || trimmed.contains(" implements ")) && trimmed.endsWith(",");
     }
 }

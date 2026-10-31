@@ -44,8 +44,8 @@ import java.util.Set;
 final class ModifierOrderFixer {
     /** Checkstyle's {@code ModifierOrderCheck} canonical ordering. */
     static final String[] MODIFIERS = {
-        "public", "private", "protected", "static", "final",
-        "transient", "volatile", "native", "synchronized", "strictfp"
+        "public", "protected", "private", "abstract", "default", "static", "sealed", "non-sealed", "final",
+        "transient", "volatile", "synchronized", "native", "strictfp"
     };
     private static final Set<String> KEYWORDS;
     private static final Map<String, Integer> RANK;
@@ -173,7 +173,11 @@ final class ModifierOrderFixer {
             List<int[]> keywordSpans = new ArrayList<>();
             for (int i = tokenIndexAt(modStart); i < tokens.size() && tokens.get(i).start() < modEnd; i++) {
                 JavaSourceTokens.Token token = tokens.get(i);
-                if (KEYWORDS.contains(token.text()) && token.start() >= modStart) {
+                if (token.text().equals("non") && i + 2 < tokens.size()
+                        && text.substring(token.start(), tokens.get(i + 2).end()).equals("non-sealed")) {
+                    keywordSpans.add(new int[]{token.start(), tokens.get(i + 2).end()});
+                    i += 2;
+                } else if (KEYWORDS.contains(token.text()) && token.start() >= modStart) {
                     keywordSpans.add(new int[]{token.start(), token.end()});
                 }
             }

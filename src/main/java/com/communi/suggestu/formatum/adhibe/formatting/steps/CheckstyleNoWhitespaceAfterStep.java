@@ -21,10 +21,19 @@ public abstract class CheckstyleNoWhitespaceAfterStep extends FormattingStep {
     }
 
     private String apply(String text) {
-        return text
-                .replaceAll("\\.[ \\t]+", ".")
-                .replaceAll("@[ \\t]+", "@")
-                .replaceAll("([!~])[ \\t]+", "$1");
+        StringBuilder result = new StringBuilder(text.length());
+        int position = 0;
+        for (JavaLexer.Token token : JavaLexer.lex(text)) {
+            if (!token.isOp(".") && !token.isOp("@") && !token.isOp("!") && !token.isOp("~")) {
+                continue;
+            }
+            int end = token.end();
+            while (end < text.length() && (text.charAt(end) == ' ' || text.charAt(end) == '\t')) {
+                end++;
+            }
+            result.append(text, position, token.end());
+            position = end;
+        }
+        return result.append(text, position, text.length()).toString();
     }
 }
-

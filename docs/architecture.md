@@ -68,6 +68,17 @@ Crossing ranges are rejected rather than producing a misleading tree.
 alone does not determine indentation. Formatting edits the original text,
 not javac's printed representation.
 
+Unbraced control bodies contribute structural depth too. Explicit case blocks
+own their indentation instead of accumulating an extra switch-body level;
+ordinary statements after classic labels retain the switch-body level.
+An AST ownership pass then resolves lambda and anonymous-class closures,
+chained-call closing parentheses, wrapped parameters, `throws` clauses, and
+switch-expression continuations against their declaration or expression
+baseline. This prevents overlapping assignment and argument continuations from
+being counted twice. Split consecutive case labels are normalized by moving a
+leading colon onto the preceding label, avoiding incompatible indentation
+expectations between Checkstyle versions.
+
 Member and statement fragments are parsed inside temporary wrappers whose
 regions and offsets are excluded from the result. Invalid syntax fails with
 javac diagnostics. Both retained `ParseMode` values now require valid syntax;

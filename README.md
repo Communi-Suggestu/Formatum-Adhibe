@@ -25,6 +25,21 @@ Current tests and fixtures are built around that file, including integration tes
 - Hint-driven rewrites for rules that cannot be safely auto-fixed without explicit intent.
 - `SAFE` and `AGGRESSIVE` fix modes.
 - Validation toggles for unmatched hints and duplicate hint IDs.
+- `JavadocStyle` sentence punctuation repairs, respecting `checkFirstSentence`,
+  `endOfSentenceFormat`, `scope`, `excludeScope`, and `tokens`. Existing sentence
+  endings, `{@inheritDoc}`, and inline `{@return ...}` exemptions are preserved.
+  HTML structure and empty descriptions remain check-only. Custom sentence
+  patterns are repaired only when appending a period satisfies the pattern.
+- `AnnotationLocation` placement and alignment, honoring `tokens` and the three
+  `allowSameline*` options. Local-variable and type-use annotations are preserved.
+- Syntax-aware cast spacing, generic type spacing, and control-body braces.
+  Brace/separator composition preserves anonymous-class terminators and empty
+  statements without joining unrelated loops or introducing blank lines.
+- Import processing accepts multiple imports on one line while preserving comments.
+- `SimplifyBooleanReturn` replaces opposing literal `return` or `yield` branches
+  with their condition (or its negation), retaining comments and evaluating the
+  condition once. Equal-valued branches and mixed return/yield branches remain
+  check-only to avoid dropping side effects or changing control flow.
 
 ## Applying the plugin in a consumer project
 

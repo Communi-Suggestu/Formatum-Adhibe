@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class CheckstyleImportOrderStep extends FormattingStep {
-    private static final Pattern IMPORT_PATTERN = Pattern.compile("^\\s*import\\s+(static\\s+)?([^;\\s]+)\\s*;(.*)$");
+    private static final Pattern IMPORT_PATTERN = Pattern.compile("^\\s*import\\s+(static\\s+)?([^;\\s]+)\\s*;(.*)$", Pattern.DOTALL);
 
     @Inject
     public CheckstyleImportOrderStep() {
@@ -39,41 +39,13 @@ public abstract class CheckstyleImportOrderStep extends FormattingStep {
     }
 
     private String reorderImports(String text) {
-        List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
-        int firstImport = -1;
-        int lastImport = -1;
-
-        for (int i = 0; i < lines.size(); i++) {
-            String trimmed = lines.get(i).trim();
-            if (trimmed.startsWith("import ")) {
-                if (firstImport < 0) {
-                    firstImport = i;
-                }
-                lastImport = i;
-                continue;
-            }
-            if (firstImport >= 0) {
-                if (trimmed.isEmpty()) {
-                    lastImport = i;
-                    continue;
-                }
-                if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) {
-                    continue;
-                }
-                break;
-            }
-        }
-
-        if (firstImport < 0) {
+        ImportSection section = ImportSection.find(text);
+        if (section == null) {
             return text;
         }
 
         List<ImportLine> imports = new ArrayList<>();
-        for (int i = firstImport; i <= lastImport; i++) {
-            String line = lines.get(i);
-            if (line.isBlank()) {
-                continue;
-            }
+        for (String line : section.imports()) {
             Matcher matcher = IMPORT_PATTERN.matcher(line);
             if (!matcher.matches()) {
                 return text;
@@ -81,14 +53,7 @@ public abstract class CheckstyleImportOrderStep extends FormattingStep {
             imports.add(new ImportLine(matcher.group(1) != null, matcher.group(2), matcher.group(3)));
         }
 
-        List<String> reordered = buildOrderedImports(imports);
-        List<String> output = new ArrayList<>(lines.subList(0, firstImport));
-        output.addAll(reordered);
-        if (lastImport + 1 < lines.size() && !lines.get(lastImport + 1).isBlank()) {
-            output.add("");
-        }
-        output.addAll(lines.subList(lastImport + 1, lines.size()));
-        return String.join("\n", output);
+        return section.replace(buildOrderedImports(imports), true);
     }
 
     private List<String> buildOrderedImports(List<ImportLine> imports) {
@@ -188,7 +153,4 @@ public abstract class CheckstyleImportOrderStep extends FormattingStep {
     private record ImportLine(boolean staticImport, String target, String trailing) {
     }
 }
-
-
-
 

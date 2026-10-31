@@ -75,12 +75,15 @@ public final class DeterministicCheckstylePlanner {
             case "RedundantModifier" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.REDUNDANT_MODIFIER, module.message().orElse(null));
             case "CommentsIndentation" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.COMMENTS_INDENTATION, module.message().orElse(null));
             case "JavadocParagraph" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.JAVADOC_PARAGRAPH, module.message().orElse(null));
+            case "JavadocStyle" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.JAVADOC_STYLE, module.message().orElse(null));
             case "AvoidStarImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.AVOID_STAR_IMPORT, module.message().orElse(null));
             case "IllegalImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.ILLEGAL_IMPORT, module.message().orElse(null));
             case "RedundantImport" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.REDUNDANT_IMPORT, module.message().orElse(null));
             case "UnusedImport", "UnusedImports" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.UNUSED_IMPORT, module.message().orElse(null));
             case "ImportOrder" -> planImportOrder(module, prefix, stepIndex);
             case "ModifierOrder" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.MODIFIER_ORDER, module.message().orElse(null));
+            case "AnnotationLocation" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.ANNOTATION_LOCATION, module.message().orElse(null));
+            case "SimplifyBooleanReturn" -> new SimpleGeneratedStepSpec(stepName(prefix, stepIndex, module.name()), module.path(), GeneratedStepKind.SIMPLIFY_BOOLEAN_RETURN, module.message().orElse(null));
             default -> null;
         };
     }
@@ -146,5 +149,3 @@ public final class DeterministicCheckstylePlanner {
         return normalizedPrefix + stepIndex + Character.toUpperCase(stem.charAt(0)) + stem.substring(1);
     }
 }
-
-

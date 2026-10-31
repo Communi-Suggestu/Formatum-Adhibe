@@ -74,4 +74,37 @@ class ModifierOrderFixerTest {
         String broken = "public class Broken {\n";
         assertEquals(broken, fix(broken));
     }
+
+    @Test
+    void ordersAbstractMethodsAndNestedClasses() {
+        String source = """
+                abstract class Example {
+                    private static abstract class Nested {}
+                    abstract public void write();
+                    abstract protected void read();
+                }
+                """;
+        assertEquals("""
+                abstract class Example {
+                    private abstract static class Nested {}
+                    public abstract void write();
+                    protected abstract void read();
+                }
+                """, fix(source));
+    }
+
+    @Test
+    void ordersSealedModifiersWithoutSplittingNonSealed() {
+        assertEquals("""
+                abstract sealed class Example permits Child {
+                    synchronized native void call();
+                }
+                abstract non-sealed class Child extends Example {}
+                """, fix("""
+                sealed abstract class Example permits Child {
+                    native synchronized void call();
+                }
+                non-sealed abstract class Child extends Example {}
+                """));
+    }
 }

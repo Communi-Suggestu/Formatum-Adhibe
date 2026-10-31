@@ -1,0 +1,371 @@
+package sample.pkg;
+
+import java.io.Serializable;
+import java.util.*;
+import java.util.function.Function;
+import static java.lang.Math.*;
+import static java.util.Map.Entry;
+
+@SuppressWarnings({"unchecked", "rawtypes"})
+public class KitchenSink<T extends Comparable<T> & Serializable, U> extends Base<T> implements Runnable, Comparable<KitchenSink<T, U>> {
+    private static final int MASK = 0xFF;
+    private static final double SMALL = 1e-5;
+    private static final long BIG = 0x1p3 > 2 ? 1_000L : -1L;
+    private final int[][] matrix = {{1, 2}, {3, 4}, {}};
+    private final int[] empty = {};
+    private final Map<String, List<Map.Entry<Integer, ? extends Number>>> nested = new HashMap<>();
+    private volatile boolean flag;
+
+    static {
+        System.setProperty("a", "b");
+    }
+
+    {
+        flag = true;
+    }
+
+    @interface Marker {
+        String name() default "x";
+        String[] values() default {"a", "b"};
+        int[] none() default {};
+    }
+
+    @Marker(name = "n", values = {"q", "r"})
+    public KitchenSink() {
+    }
+
+    public KitchenSink(int a) {
+        this();
+    }
+
+    public synchronized void sync() {
+    }
+
+    public <V extends Number & Comparable<V>> V max(List<? extends V> list, Function<? super V, ? extends V> fn) {
+        V best = null;
+        for (V v : list) {
+            if (best == null || best.compareTo(v) < 0) {
+                best = fn.apply(v);
+            }
+        }
+        return best;
+    }
+
+    public int arithmetic(int a, int b, int[] arr, long c) {
+        int result = a + b - c * 2 / 3 % 4;
+        result += a;
+        result -= b;
+        result *= 2;
+        result /= 3;
+        result %= 5;
+        result <<= 1;
+        result >>= 1;
+        result >>>= 1;
+        result &= MASK;
+        result |= 1;
+        result ^= 2;
+        result = a << 2 | b >> 3 & MASK ^ (a >>> 4);
+        result = -a + +b - (-c) + ~a;
+        result = (int) -c + (int) +c;
+        result = a++ + ++b - --a - b--;
+        result = a+++b;
+        result = arr[a] - arr[b] + arr[-1 + 2];
+        result = (a & b) | (a ^ b);
+        boolean test = a < b && b > a || a <= b && b >= a && a == b && a != b;
+        test = !test;
+        result = test ? a : b;
+        result = test ? (a > b ? a : b) : (a < b ? b : a);
+        return result;
+    }
+
+    public void controlFlow(List<String> list, Object o, int x) throws Exception {
+        if (x > 0) {
+            x--;
+        } else if (x < 0) {
+            x++;
+        } else {
+            x = 0;
+        }
+        for (int i = 0; i < x; i++) {
+            continue;
+        }
+        for (;;) {
+            break;
+        }
+        for (String s : list) {
+            s.length();
+        }
+        while (x > 0) x--;
+        do {
+            x++;
+        } while (x < 10);
+        do x++; while (x < 20);
+        try {
+            sync();
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+        } finally {
+            x = 1;
+        }
+        try (Scanner sc = new Scanner("x"); Scanner sc2 = new Scanner("y")) {
+            sc.next();
+        }
+        synchronized (this) {
+            x = 2;
+        }
+        assert x > 0 : "positive";
+        assert x > 0;
+        outer:
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (j == 1) continue outer;
+            }
+        }
+        switch (x) {
+            case 1:
+                x = 2;
+                break;
+            case 2:
+            case 3: {
+                x = 4;
+                break;
+            }
+            case 4: {
+            }
+            default:
+                x = 0;
+        }
+        switch (x) {
+        }
+        {
+            int nested = x;
+        }
+        {
+        }
+        while (x > 0) {
+        }
+        for (; x > 0; ) {
+        }
+    }
+
+    public String switchExpressions(Object o, int day) {
+        int len = switch (day) {
+            case 1, 7 -> 0;
+            case 2 -> {
+                int t = day * 2;
+                yield t;
+            }
+            case 3 -> {
+            }
+            default -> day > 3 ? 1 : -1;
+        };
+        String desc = switch (o) {
+            case Integer i when i > 10 -> "big";
+            case Integer i -> "int";
+            case String s when s.isEmpty() || s.length() > 3 -> "str";
+            case Point(int px, int py) when px > py -> "pt";
+            case null -> "null";
+            default -> "other";
+        };
+        switch (day) {
+            case 1 -> System.out.println("a");
+            case 2 -> {
+                System.out.println("b");
+            }
+            default -> {
+            }
+        }
+        return desc + switch (len) {
+            case 0 -> "z";
+            default -> "n";
+        };
+    }
+
+    public void lambdas() {
+        Runnable r = () -> {
+        };
+        Runnable r2 = () -> System.out.println("x");
+        Function<Integer, Integer> f = x -> x + 1;
+        Function<Integer, Function<Integer, Integer>> g = a -> b -> a + b;
+        Comparator<String> c = (s1, s2) -> {
+            return s1.compareTo(s2);
+        };
+        Object o = (Runnable & Serializable) () -> {
+        };
+        Supplier<List<String>> sup = ArrayList<String>::new;
+        Function<String, Integer> len = String::length;
+        new Thread(() -> {
+        }).start();
+    }
+
+    public void anonymous() {
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+            }
+        };
+        Map<String, String> m = new HashMap<>() {{
+            put("a", "b");
+            put("c", "d");
+        }};
+        List<String> list = Arrays.asList(new String[]{"a", "b"}, new String[] {"c"}).stream().toList();
+        Object o = new Object() {
+            int field = 1;
+        };
+        Object p = new Object() {
+        };
+        foo(new Runnable() {
+            public void run() {
+            }
+        }, 1);
+    }
+
+    public void generics() {
+        List<String> a = new ArrayList<String>();
+        Map<String, List<Integer>> b = new HashMap<String, List<Integer>>();
+        List<List<List<String>>> c = null;
+        Collections.<String>emptyList();
+        Object o = (List<String>) null;
+        boolean t = a instanceof List<?> && b instanceof Map<?, ?> m && c != null;
+        int i = 0;
+        int j = 10;
+        boolean cmp = i < j && j > i;
+        boolean cmp2 = i < j == j > i;
+        int sh = i < j ? j >> 1 : j >>> 1;
+        foo(i < j, j > i);
+        foo(i < J, K > j);
+        foo((Map<String, Integer> mm) -> mm);
+        Class<?> cls = String.class;
+        Class<? super Integer> cls2 = null;
+        Class<int[]> cls3 = int[].class;
+    }
+
+    public void varargs(String... args) {
+        String[] arr = new String[args.length];
+        int[][] grid = new int[3][];
+        int[] literal = new int[]{1, 2, 3};
+        int[][] jagged = {{1}, {2, 3}};
+        char ch = 'x';
+        char quote = '\'';
+        String text = "a + b = c; { } // not a comment /* nor this */ ->";
+        String block = """
+                if (a<b) { return x>>2; }
+                """;
+        // comment with operators a+b=c
+        /* block comment a+b=c {} */
+        /**
+         * Javadoc a*b.
+         */
+        int star = 2 * 3;
+    }
+
+    enum Color {
+        RED, GREEN {
+            @Override
+            int value() {
+                return 2;
+            }
+        }, BLUE(3) {
+            @Override
+            int value() {
+                return 3;
+            }
+        };
+
+        private final int v;
+
+        Color() {
+            this(1);
+        }
+
+        Color(int v) {
+            this.v = v;
+        }
+
+        int value() {
+            return v;
+        }
+    }
+
+    enum Empty {
+    }
+
+    enum OnlyConstants { A, B }
+
+    record Point(int x, int y) {
+        Point {
+            if (x < 0) {
+                throw new IllegalArgumentException();
+            }
+        }
+
+        Point(int x) {
+            this(x, 0);
+        }
+
+        static Point origin() {
+            return new Point(0, 0);
+        }
+    }
+
+    record Empty2() {
+    }
+
+    sealed interface Shape permits Circle, Square {
+    }
+
+    non-sealed class Circle implements Shape {
+    }
+
+    final class Square implements Shape {
+    }
+
+    interface Api {
+        default void greet() {
+        }
+
+        static void util() {
+        }
+
+        void abstractMethod();
+    }
+
+    class Outer {
+        class Inner {
+        }
+    }
+
+    abstract static class Abstract {
+        abstract void f();
+
+        void g() {
+        }
+
+        synchronized void h() {
+        }
+    }
+
+    void emptyStuff() {
+        return;
+    }
+
+    int returns(int a) {
+        if (a > 0) return a;
+        if (a < 0) return -a;
+        return(a);
+    }
+
+    void init() {
+        Object o = new Object();
+        Outer outer = new Outer();
+        Outer.Inner inner = outer.new Inner();
+        String s = o == null ? "a" : o instanceof String str ? str : "c";
+        label: {
+            break label;
+        }
+        int x = switch (1) {
+            default -> 1;
+        };
+    }
+}

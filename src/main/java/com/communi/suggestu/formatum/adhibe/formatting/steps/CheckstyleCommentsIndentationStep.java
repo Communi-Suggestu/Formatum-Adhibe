@@ -15,9 +15,9 @@ import java.util.List;
  *   <li>Javadoc blocks: body lines (starting with {@code *}) are re-indented to match
  *       the {@code /**} header's indentation, with a space after {@code *}
  *       (matching {@code com.puppycrawl.tools.checkstyle.checks.indentation.CommentsIndentationCheck}).</li>
- *   <li>Single-line {@code //} comments: re-indented to match the previous code line's
+ *   <li>Single-line {@code //} comments: re-indented to match the following statement's
  *       indentation. Trailing comments (on the same line as code) are skipped.</li>
- *   <li>Block {@code /**} ... {@code *&#42;/} comments: re-indented to match the previous code line's
+ *   <li>Block {@code /*} ... {@code *&#42;/} comments: re-indented to match the following statement's
  *       indentation. Standalone single-line block comments (no code before {@code /*}) are
  *       re-indented. Trailing block comments (code before {@code /*} on the same line)
  *       are skipped.</li>
@@ -46,11 +46,31 @@ public abstract class CheckstyleCommentsIndentationStep extends FormattingStep {
         String currentJavadocIndent = null;
         // Track multi-line block comment (/* without */)
         String currentBlockCommentIndent = null;
+        String originalBlockCommentIndent = null;
         int blockCommentStartLine = -1;
+        boolean[] literalLines = new boolean[lines.size()];
+        int tokenLine = 0;
+        int tokenOffset = 0;
+        for (JavaLexer.Token token : JavaLexer.lex(text)) {
+            while (tokenOffset < token.start()) {
+                if (text.charAt(tokenOffset++) == '\n') {
+                    tokenLine++;
+                }
+            }
+            if (token.type() == JavaLexer.Type.STRING || token.type() == JavaLexer.Type.CHAR) {
+                int lastLine = tokenLine + (int) token.text().chars().filter(c -> c == '\n').count();
+                for (int line = tokenLine; line <= lastLine; line++) {
+                    literalLines[line] = true;
+                }
+            }
+        }
 
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
             String trimmed = line.trim();
+            if (literalLines[i]) {
+                continue;
+            }
 
             // 1. Handle Javadoc body (if inside Javadoc block)
             if (currentJavadocIndent != null) {
@@ -73,7 +93,7 @@ public abstract class CheckstyleCommentsIndentationStep extends FormattingStep {
                         lines.set(i, currentBlockCommentIndent + " " + trimmed);
                     } else {
                         // Non-* line: preserve original line (indentation + content)
-                        lines.set(i, currentBlockCommentIndent + line);
+                        lines.set(i, reindentBody(line, originalBlockCommentIndent, currentBlockCommentIndent));
                     }
                     blockCommentStartLine = -1;
                     currentBlockCommentIndent = null;
@@ -83,7 +103,7 @@ public abstract class CheckstyleCommentsIndentationStep extends FormattingStep {
                         lines.set(i, currentBlockCommentIndent + " " + trimmed);
                     } else {
                         // Non-* line: preserve original line (indentation + content)
-                        lines.set(i, currentBlockCommentIndent + line);
+                        lines.set(i, reindentBody(line, originalBlockCommentIndent, currentBlockCommentIndent));
                     }
                 }
                 continue;
@@ -101,21 +121,18 @@ public abstract class CheckstyleCommentsIndentationStep extends FormattingStep {
                     // Regular block comment (not javadoc)
                     if (!isTrailingBlockComment(line, commentStart)) {
                         if (trimmed.contains("*/")) {
-                            // Single-line block comment: re-indent to match previous code line
-                            int prevCode = previousCodeLine(lines, i - 1);
-                            if (prevCode >= 0) {
-                                String indent = indentation(lines.get(prevCode));
-                                lines.set(i, indent + trimmed.substring(commentStart));
-                            }
+                            // Keep standalone comments aligned with the statement they describe.
+                            lines.set(i, commentIndentation(lines, i, i) + trimmed.substring(commentStart));
                         } else {
                             // Multi-line block comment: track until we see */
-                            int prevCode = previousCodeLine(lines, i - 1);
-                            if (prevCode >= 0) {
-                                String indent = indentation(lines.get(prevCode));
-                                currentBlockCommentIndent = indent;
-                                blockCommentStartLine = i;
-                                lines.set(i, indent + trimmed.substring(commentStart));
+                            int end = i + 1;
+                            while (end < lines.size() && !lines.get(end).contains("*/")) {
+                                end++;
                             }
+                            originalBlockCommentIndent = indentation(line);
+                            currentBlockCommentIndent = commentIndentation(lines, i, end);
+                            blockCommentStartLine = i;
+                            lines.set(i, currentBlockCommentIndent + trimmed.substring(commentStart));
                         }
                     }
                 }
@@ -133,13 +150,39 @@ public abstract class CheckstyleCommentsIndentationStep extends FormattingStep {
             return;
         }
 
-        // Find the previous non-comment code line and apply its indentation
-        int prevCode = previousCodeLine(lines, i - 1);
-        if (prevCode >= 0) {
-            String indent = indentation(lines.get(prevCode));
-            String body = trimmed.substring(commentPos);
-            lines.set(i, indent + body);
+        lines.set(i, commentIndentation(lines, i, i) + trimmed.substring(commentPos));
+    }
+
+    private static String reindentBody(String line, String originalIndent, String indent) {
+        return indent + (line.startsWith(originalIndent) ? line.substring(originalIndent.length()) : line.stripLeading());
+    }
+
+    private static String commentIndentation(List<String> lines, int start, int end) {
+        boolean inBlock = false;
+        for (int i = end + 1; i < lines.size(); i++) {
+            String trimmed = lines.get(i).trim();
+            if (inBlock) {
+                inBlock = !trimmed.contains("*/");
+                continue;
+            }
+            if (trimmed.startsWith("/*")) {
+                inBlock = !trimmed.contains("*/");
+                continue;
+            }
+            if (trimmed.isEmpty() || trimmed.startsWith("//")) {
+                continue;
+            }
+            if (!trimmed.startsWith("}")) {
+                return indentation(lines.get(i));
+            }
+            break;
         }
+        int previous = previousCodeLine(lines, start - 1);
+        if (previous < 0) {
+            return indentation(lines.get(start));
+        }
+        String code = lines.get(previous);
+        return indentation(code) + (code.stripTrailing().endsWith("{") ? "\t" : "");
     }
 
     /** Find the position of the first comment marker (// or /*) on the trimmed line. */

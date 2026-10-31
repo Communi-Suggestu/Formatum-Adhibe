@@ -27,7 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class CheckstyleImportLintStep extends FormattingStep {
-    private static final Pattern IMPORT_PATTERN = Pattern.compile("^import\\s+(static\\s+)?([^;\\s]+)\\s*;(.*)$");
+    private static final Pattern IMPORT_PATTERN = Pattern.compile("^\\s*import\\s+(static\\s+)?([^;\\s]+)\\s*;(.*)$", Pattern.DOTALL);
 
     @Inject
     public CheckstyleImportLintStep() {
@@ -73,45 +73,23 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
     }
 
     private String sanitizeImports(String fileName, String text) {
-        List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
-        int firstImport = -1;
-        int lastImport = -1;
         String packageName = "";
 
-        for (int i = 0; i < lines.size(); i++) {
-            String trimmed = lines.get(i).trim();
+        for (String line : text.split("\n", -1)) {
+            String trimmed = line.trim();
             if (trimmed.startsWith("package ")) {
                 packageName = trimmed.substring("package ".length(), trimmed.length() - 1).trim();
-            }
-            if (trimmed.startsWith("import ")) {
-                if (firstImport < 0) {
-                    firstImport = i;
-                }
-                lastImport = i;
-                continue;
-            }
-            if (firstImport >= 0) {
-                if (trimmed.isEmpty()) {
-                    lastImport = i;
-                    continue;
-                }
-                if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) {
-                    continue;
-                }
                 break;
             }
         }
 
-        if (firstImport < 0) {
+        ImportSection section = ImportSection.find(text);
+        if (section == null) {
             return text;
         }
 
         List<ImportLine> imports = new ArrayList<>();
-        for (int i = firstImport; i <= lastImport; i++) {
-            String line = lines.get(i);
-            if (line.isBlank()) {
-                continue;
-            }
+        for (String line : section.imports()) {
             Matcher matcher = IMPORT_PATTERN.matcher(line);
             if (!matcher.matches()) {
                 return text;
@@ -134,13 +112,7 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
         }
 
         List<String> rendered = sanitized.stream().map(this::render).toList();
-        List<String> output = new ArrayList<>(lines.subList(0, firstImport));
-        output.addAll(rendered);
-        if (lastImport + 1 < lines.size() && !lines.get(lastImport + 1).isBlank()) {
-            output.add("");
-        }
-        output.addAll(lines.subList(lastImport + 1, lines.size()));
-        return String.join("\n", output);
+        return section.replace(rendered);
     }
 
     private List<ImportLine> applyRules(List<ImportLine> imports, final String fileName, String packageName, JavaImportUsageAnalyzer.ImportUsage usage) {
@@ -323,4 +295,3 @@ public abstract class CheckstyleImportLintStep extends FormattingStep {
         }
     }
 }
-

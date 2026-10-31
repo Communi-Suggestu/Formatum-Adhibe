@@ -8,13 +8,17 @@ import org.gradle.api.tasks.Input;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 public abstract class CheckstyleOperatorWrapStep extends FormattingStep {
-    private static final List<String> SUPPORTED_OPERATORS = List.of(
-            "||", "&&", "==", "!=", "<=", ">=", "+", "-", "*", "/", "%", "<", ">", "?", ":"
-    );
+    private static final Set<String> DEFAULT_TOKENS = Set.of(
+            "QUESTION", "COLON", "EQUAL", "NOT_EQUAL", "DIV", "PLUS", "MINUS", "STAR", "MOD",
+            "SR", "BSR", "GE", "GT", "SL", "LE", "LT", "BXOR", "BOR", "LOR", "BAND", "LAND",
+            "TYPE_EXTENSION_AND", "LITERAL_INSTANCEOF");
 
     @Inject
     public CheckstyleOperatorWrapStep() {
@@ -31,130 +35,53 @@ public abstract class CheckstyleOperatorWrapStep extends FormattingStep {
         return (fileName, text) -> apply(TextFormattingUtils.normalizeNewlines(text));
     }
 
+    private record Edit(int start, int end, String replacement) {}
+
     private String apply(String text) {
-        String option = getOption().getOrElse("nl").toLowerCase(Locale.ROOT);
-        List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
-
-        if ("eol".equals(option)) {
-            wrapOperatorsEndOfLine(lines);
-        } else {
-            wrapOperatorsNewLine(lines);
+        List<String> configured = getTokens().getOrElse(List.of());
+        Set<String> selected = configured.isEmpty() ? DEFAULT_TOKENS : Set.copyOf(configured);
+        Map<Integer, String> operators = new HashMap<>();
+        for (var site : WhitespaceAroundAnalyzer.analyze(text, WhitespaceAroundAnalyzer.Options.defaults())) {
+            if (selected.contains(site.token().name()) && !site.skipBefore() && !site.skipAfter()
+                    && (DEFAULT_TOKENS.contains(site.token().name()) || site.token().name().endsWith("ASSIGN")
+                    || site.token() == WhitespaceAroundToken.LAMBDA)) {
+                operators.put(site.start(), text.substring(site.start(), site.end()));
+            }
         }
-
-        return String.join("\n", lines);
-    }
-
-    private static void wrapOperatorsNewLine(List<String> lines) {
-        for (int i = 0; i < lines.size() - 1; i++) {
-            String line = lines.get(i);
-            String trimmed = line.trim();
-            if (trimmed.isEmpty() || isCommentLine(trimmed) || containsLikelyStringOrComment(line)) {
-                continue;
+        List<JavaLexer.Token> tokens = JavaLexer.lex(text);
+        List<Edit> edits = new ArrayList<>();
+        boolean endOfLine = "eol".equalsIgnoreCase(getOption().getOrElse("nl"));
+        for (int i = 1; i + 1 < tokens.size(); i++) {
+            var token = tokens.get(i);
+            String operator = operators.get(token.start());
+            if (token.isKeyword("instanceof") && selected.contains("LITERAL_INSTANCEOF")
+                    || token.isOp("::") && selected.contains("METHOD_REF")) {
+                operator = token.text();
             }
-            if (trimmed.endsWith("->") || trimmed.contains(" -> ")) {
-                continue;
-            }
-
-            String matchedOperator = trailingOperator(trimmed);
-            if (matchedOperator == null) {
-                continue;
-            }
-
-            int next = nextNonEmpty(lines, i + 1);
-            if (next < 0) {
-                continue;
-            }
-
-            String nextTrimmed = lines.get(next).trim();
-            if (startsWithOperator(nextTrimmed)) {
-                continue;
-            }
-
-            String withoutOperator = line.substring(0, line.lastIndexOf(matchedOperator)).stripTrailing();
-            lines.set(i, withoutOperator);
-            String nextLine = lines.get(next);
-            String nextIndent = nextLine.substring(0, nextLine.length() - nextLine.stripLeading().length());
-            lines.set(next, nextIndent + matchedOperator + " " + nextTrimmed);
-        }
-    }
-
-    private static void wrapOperatorsEndOfLine(List<String> lines) {
-        for (int i = 1; i < lines.size(); i++) {
-            String line = lines.get(i);
-            String trimmed = line.trim();
-            if (trimmed.isEmpty() || isCommentLine(trimmed) || containsLikelyStringOrComment(line)) {
-                continue;
-            }
-            if (trimmed.startsWith(">") && i > 0 && lines.get(i - 1).trim().endsWith("-")) {
-                // Don't split a lambda arrow across lines as "-" and ">".
-                continue;
-            }
-
-            String operator = leadingOperator(trimmed);
             if (operator == null) {
                 continue;
             }
-
-            int previous = previousNonEmpty(lines, i - 1);
-            if (previous < 0) {
-                continue;
-            }
-
-            String previousLine = lines.get(previous).stripTrailing();
-            lines.set(previous, previousLine + " " + operator);
-            lines.set(i, line.substring(line.indexOf(operator) + operator.length()).stripLeading());
-        }
-    }
-
-    private static String trailingOperator(String trimmed) {
-        for (String operator : SUPPORTED_OPERATORS) {
-            if (trimmed.endsWith(operator)) {
-                return operator;
+            var previous = tokens.get(i - 1);
+            var next = tokens.get(i + 1);
+            String before = text.substring(previous.end(), token.start());
+            String after = text.substring(token.end(), next.start());
+            if (!endOfLine && horizontal(before) && after.contains("\n")) {
+                edits.add(new Edit(previous.end(), token.end(), ""));
+                edits.add(new Edit(next.start(), next.start(), operator + " "));
+            } else if (endOfLine && before.contains("\n") && horizontal(after)) {
+                edits.add(new Edit(previous.end(), previous.end(), " " + operator));
+                edits.add(new Edit(token.start(), next.start(), ""));
             }
         }
-        return null;
-    }
-
-    private static String leadingOperator(String trimmed) {
-        for (String operator : SUPPORTED_OPERATORS) {
-            if (trimmed.startsWith(operator + " ") || trimmed.equals(operator)) {
-                return operator;
-            }
+        edits.sort(Comparator.comparingInt(Edit::start).reversed());
+        StringBuilder result = new StringBuilder(text);
+        for (Edit edit : edits) {
+            result.replace(edit.start(), edit.end(), edit.replacement());
         }
-        return null;
+        return result.toString();
     }
 
-    private static boolean startsWithOperator(String trimmed) {
-        return leadingOperator(trimmed) != null;
-    }
-
-    private static int nextNonEmpty(List<String> lines, int from) {
-        for (int i = from; i < lines.size(); i++) {
-            if (!lines.get(i).trim().isEmpty()) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static int previousNonEmpty(List<String> lines, int from) {
-        for (int i = from; i >= 0; i--) {
-            if (!lines.get(i).trim().isEmpty()) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static boolean containsLikelyStringOrComment(String line) {
-        return line.contains("\"") || line.contains("//") || line.contains("/*") || line.contains("*/");
-    }
-
-    private static boolean isCommentLine(String trimmed) {
-        return trimmed.startsWith("//")
-                || trimmed.startsWith("/*")
-                || trimmed.startsWith("*/")
-                || trimmed.startsWith("*");
+    private static boolean horizontal(String text) {
+        return text.chars().allMatch(c -> c == ' ' || c == '\t');
     }
 }
-

@@ -145,13 +145,13 @@ class StepFormatterTest {
     }
 
     @Test
-    void enforcesLeftCurlySkipsEnumBodyOpeningWhenIgnoreEnumsIsTrue() {
+    void enforcesLeftCurlyMovesEnumBodyOpeningWhenIgnoreEnumsIsTrue() {
         CheckstyleLeftCurlyStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleLeftCurlyStep.class, STEP_NAME);
         step.getOption().set("eol");
         step.getIgnoreEnums().set(true);
 
         String source = "public enum Foo\n\t{\n\tA, B;\n}\n";
-        String expected = "public enum Foo\n\t{\n\tA, B;\n}\n";
+        String expected = "public enum Foo {\n\tA, B;\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 
@@ -538,6 +538,29 @@ class StepFormatterTest {
     }
 
     @Test
+    void noWhitespaceAfterPreservesLoggerMessage() {
+        CheckstyleNoWhitespaceAfterStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleNoWhitespaceAfterStep.class, STEP_NAME);
+        String source = "LOGGER.debug(\"Found specified {} instance for: {}. Using it rather than creating a new instance.\", baseClass.getSimpleName(),\n"
+                + "        nameFunction.apply(instance));\n";
+        assertEquals(source, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void noWhitespaceAfterPreservesLiteralsAndCommentsWhileFormattingCode() {
+        CheckstyleNoWhitespaceAfterStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleNoWhitespaceAfterStep.class, STEP_NAME);
+        String unchanged = "String text = \"Escaped \\\"quote\\\". Next! ~ @ user\";\n"
+                + "String block = \"\"\"\nSentence. Next! ~ @ user\n\"\"\";\n"
+                + "char dot = '.'; char bang = '!'; char tilde = '~'; char at = '@';\n"
+                + "// Sentence. Next! ~ @ user\n"
+                + "/* Sentence. Next! ~ @ user */\n";
+        String source = unchanged + "@ Deprecated\nvalue. \tmap(! flag, ~ mask);\nvalue.\n    map();\n";
+        String expected = unchanged + "@Deprecated\nvalue.map(!flag, ~mask);\nvalue.\n    map();\n";
+        String actual = step.formatter().format("Example.java", source);
+        assertEquals(expected, actual);
+        assertEquals(actual, step.formatter().format("Example.java", actual));
+    }
+
+    @Test
     void appliesWhitespaceAfterRules() {
         CheckstyleWhitespaceAfterStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAfterStep.class, STEP_NAME);
         step.getTokens().set(java.util.List.of("COMMA"));
@@ -563,7 +586,7 @@ class StepFormatterTest {
         step.getTokens().set(java.util.List.of("ASSIGN", "EQUAL", "LITERAL_IF"));
 
         String source = "if(flag==true){\n\tint value=1;\n}\n";
-        String expected = "if(flag == true){\n\tint value = 1;\n}\n";
+        String expected = "if (flag == true){\n\tint value = 1;\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 
@@ -846,6 +869,7 @@ class StepFormatterTest {
         CheckstyleWhitespaceAroundStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, STEP_NAME);
 
         // Division is intentionally excluded from this project's WhitespaceAround tokens.
+        step.getTokens().set(java.util.List.of("ASSIGN", "MOD", "STAR"));
         assertEquals("int q = a/b;\n", step.formatter().format("Example.java", "int q = a/b;\n"));
     }
 
@@ -1027,7 +1051,7 @@ class StepFormatterTest {
         CheckstyleCommentsIndentationStep step = ProjectBuilder.builder().build().getObjects().newInstance(CheckstyleCommentsIndentationStep.class, STEP_NAME);
 
         String source = "class Example {\n\tvoid run() {\n// comment\n\t\tcall();\n\t}\n}\n";
-        String expected = "class Example {\n\tvoid run() {\n\t// comment\n\t\tcall();\n\t}\n}\n";
+        String expected = "class Example {\n\tvoid run() {\n\t\t// comment\n\t\tcall();\n\t}\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 
@@ -1064,7 +1088,7 @@ class StepFormatterTest {
 
         // Block comment should be re-indented to match previous code line
         String source = "class Example {\n\tvoid run() {\n/* block comment */\n\t\tx = 1;\n\t}\n}\n";
-        String expected = "class Example {\n\tvoid run() {\n\t/* block comment */\n\t\tx = 1;\n\t}\n}\n";
+        String expected = "class Example {\n\tvoid run() {\n\t\t/* block comment */\n\t\tx = 1;\n\t}\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 
@@ -1084,7 +1108,7 @@ class StepFormatterTest {
 
         // Multi-line block comment should be re-indented
         String source = "class Example {\n\tvoid run() {\n/*\n * comment line\n */\n\t\tx = 1;\n\t}\n}\n";
-        String expected = "class Example {\n\tvoid run() {\n\t/*\n\t * comment line\n\t */\n\t\tx = 1;\n\t}\n}\n";
+        String expected = "class Example {\n\tvoid run() {\n\t\t/*\n\t\t * comment line\n\t\t */\n\t\tx = 1;\n\t}\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 
@@ -1094,7 +1118,7 @@ class StepFormatterTest {
 
         // Regular (non-javadoc) block comment with body lines
         String source = "class Example {\n\tvoid run() {\n/*\n   regular comment body\n   another line\n */\n\t\tx = 1;\n\t}\n}\n";
-        String expected = "class Example {\n\tvoid run() {\n\t/*\n\t   regular comment body\n\t   another line\n\t */\n\t\tx = 1;\n\t}\n}\n";
+        String expected = "class Example {\n\tvoid run() {\n\t\t/*\n\t\t   regular comment body\n\t\t   another line\n\t\t */\n\t\tx = 1;\n\t}\n}\n";
         assertEquals(expected, step.formatter().format("Example.java", source));
     }
 
@@ -1232,7 +1256,12 @@ class StepFormatterTest {
                 + "\t}\n"
                 + "}\n";
 
-        assertEquals(source, step.formatter().format("MagnifyingGlassTooltipHandler.java", source));
+        String expected = source
+                .replace("getEnableHelp().get())\n", "getEnableHelp().get()) {\n")
+                .replace("instanceof MagnifyingGlassItem)\n\n", "instanceof MagnifyingGlassItem) {\n")
+                .replace("\t\t\t\t}\n\t}\n", "\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n");
+        assertEquals(expected, step.formatter().format("MagnifyingGlassTooltipHandler.java", source));
+        assertEquals(expected, step.formatter().format("MagnifyingGlassTooltipHandler.java", expected));
     }
 
     @Test

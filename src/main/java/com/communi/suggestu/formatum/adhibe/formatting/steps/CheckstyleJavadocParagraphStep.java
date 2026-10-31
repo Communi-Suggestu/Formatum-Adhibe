@@ -2,6 +2,8 @@ package com.communi.suggestu.formatum.adhibe.formatting.steps;
 
 import dev.lukebemish.immaculate.FileFormatter;
 import dev.lukebemish.immaculate.FormattingStep;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Input;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
@@ -13,7 +15,7 @@ import java.util.Set;
  * <ul>
  *   <li>One blank line between each paragraph.</li>
  *   <li>Every paragraph but the first gets a {@code <p>} tag on
- *       its own line immediately before the first word.</li>
+ *       a separate line when {@code allowNewlineParagraph} permits it, otherwise directly before the first word.</li>
  *   <li>No {@code <p>} tag directly before block-level HTML
  *       (e.g. {@code <table>}, {@code <pre>}, {@code <ul>}).</li>
  * </ul>
@@ -29,6 +31,9 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
     @Inject
     public CheckstyleJavadocParagraphStep() {
     }
+
+    @Input
+    public abstract Property<Boolean> getAllowNewlineParagraph();
 
     @Override
     public FileFormatter formatter() {
@@ -50,6 +55,9 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
             int start = range[0];
             int end = range[1];
             String[] fixed = fixJavadocParagraph(result, start, end);
+            if (!getAllowNewlineParagraph().getOrElse(true)) {
+                fixed = joinParagraphTags(fixed);
+            }
             // Splice the fixed javadoc back into the full result
             String[] before = result.length > start ? java.util.Arrays.copyOfRange(result, 0, start) : new String[0];
             String[] after = result.length > end + 1 ? java.util.Arrays.copyOfRange(result, end + 1, result.length) : new String[0];
@@ -119,6 +127,24 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
             if (i == javadocEnd && trimmed.endsWith("*/")) {
                 result.add(line);
                 continue;
+            }
+
+            String content = trimmed.startsWith("*") ? trimmed.substring(1).stripLeading() : trimmed;
+            if (!inBlockTag && (content.startsWith("<p>") || content.startsWith("<P>"))
+                    && !content.substring(3).isBlank()) {
+                String paragraphText = content.substring(3).stripLeading();
+                if (detectBlockTagOpen(paragraphText) != null) {
+                    line = line.substring(0, line.indexOf('<')) + paragraphText;
+                    trimmed = line.trim();
+                } else {
+                    if (firstParagraphSeen && !result.getLast().trim().equals("*")) {
+                        result.add(findJavadocIndentation(result) + "*");
+                    }
+                    result.add(line.replaceFirst("(?i)(<p>)[ \\t]+", "$1"));
+                    firstParagraphSeen = true;
+                    afterP = false;
+                    continue;
+                }
             }
 
             // Detect block tags
@@ -212,6 +238,23 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
         return String.join("\n", result).split("\n", -1);
     }
 
+    private static String[] joinParagraphTags(String[] lines) {
+        List<String> result = new ArrayList<>();
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            String trimmed = line.trim();
+            if ((trimmed.equals("* <p>") || trimmed.equals("* <P>")) && i + 1 < lines.length) {
+                String next = lines[i + 1].stripLeading();
+                if (next.startsWith("* ") && !next.substring(2).isBlank()) {
+                    line = line.stripTrailing() + next.substring(2).stripLeading();
+                    i++;
+                }
+            }
+            result.add(line);
+        }
+        return result.toArray(String[]::new);
+    }
+
     /**
      * When a block tag is found, check if it is directly preceded by <p>.
      * If so, remove the <p> (and its preceding blank line).
@@ -277,11 +320,7 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
                 String after = content.length() > open.length()
                         ? content.substring(open.length())
                         : "";
-                String afterUp = content.length() > openUp.length()
-                        ? content.substring(openUp.length())
-                        : "";
-                if (tag.equals("p") && (after.isEmpty() || after.strip().isEmpty())
-                        || (afterUp.isEmpty() || afterUp.strip().isEmpty())) {
+                if (tag.equals("p") && (after.isEmpty() || after.strip().isEmpty())) {
                     return null;  // Standalone <p> is not a block tag
                 }
                 return tag;
@@ -290,7 +329,7 @@ public abstract class CheckstyleJavadocParagraphStep extends FormattingStep {
                 String after = content.length() > openUp.length()
                         ? content.substring(openUp.length())
                         : "";
-                if (after.isEmpty() || after.strip().isEmpty()) {
+                if (tag.equals("p") && (after.isEmpty() || after.strip().isEmpty())) {
                     return null;  // Standalone <P> is not a block tag
                 }
                 return tag;

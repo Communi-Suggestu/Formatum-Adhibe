@@ -638,12 +638,30 @@ class FormattingMechanicsRegressionTest {
                 + "\tint value(int y) {\n"
                 + "\t\treturn switch (y) {\n"
                 + "\t\tcase Y -> 1;\n"
-                + "\t\t\tdefault -> 2;\n"
+                + "\t\tdefault -> 2;\n"
                 + "\t\t};\n"
                 + "\t}\n"
                 + "}\n";
 
         assertEquals(expected, step.formatter().format("Example.java", source));
+    }
+
+    @Test
+    void reindentsClassicSwitchDefaultLabelBelowSwitchKeyword() {
+        CheckstyleIndentationStep step = indentationStep();
+        for (String label : java.util.List.of("default:", "default\n\t\t\t:")) {
+            String source = "class Example {\n"
+                    + "\tvoid run(int axis) {\n"
+                    + "\t\tswitch (axis) {\n"
+                    + "\t\t\t" + label + " throw new IllegalArgumentException();\n"
+                    + "\t\t}\n"
+                    + "\t}\n"
+                    + "}\n";
+            String expected = source.replace("\t\t\tdefault", "\t\tdefault");
+            String actual = step.formatter().format("Example.java", source);
+            assertEquals(expected, actual);
+            assertEquals(actual, step.formatter().format("Example.java", actual));
+        }
     }
 
     @Test

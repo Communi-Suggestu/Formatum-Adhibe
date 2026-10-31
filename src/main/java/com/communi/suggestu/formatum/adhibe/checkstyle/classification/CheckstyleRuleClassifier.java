@@ -33,7 +33,7 @@ public final class CheckstyleRuleClassifier {
             Map.entry("ArrayTypeStyle", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Array bracket style can be normalized deterministically.")),
             Map.entry("DefaultComesLast", new RuleClassification(RuleSupport.CHECK_ONLY, "Switch case reordering can alter behavior in edge cases.")),
             Map.entry("SimplifyBooleanExpression", new RuleClassification(RuleSupport.CHECK_ONLY, "Expression simplification can change semantics in corner cases.")),
-            Map.entry("SimplifyBooleanReturn", new RuleClassification(RuleSupport.CHECK_ONLY, "Return expression simplification can change readability policy.")),
+            Map.entry("SimplifyBooleanReturn", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Opposing literal return/yield branches are simplified; equal or mixed branches remain check-only.")),
             Map.entry("StringLiteralEquality", new RuleClassification(RuleSupport.CHECK_ONLY, "Requires semantic replacement with equals; preserve null safety.")),
             Map.entry("ModifierOrder", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Modifier ordering is deterministic.")),
             Map.entry("RedundantModifier", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Redundant modifier removal is deterministic.")),
@@ -44,7 +44,7 @@ public final class CheckstyleRuleClassifier {
             Map.entry("PackageDeclaration", new RuleClassification(RuleSupport.CHECK_ONLY, "Adding package declaration safely needs project/package resolution.")),
             Map.entry("PackageName", new RuleClassification(RuleSupport.CHECK_ONLY, "Renaming packages impacts file paths and references.")),
             Map.entry("JavadocParagraph", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Javadoc paragraph spacing normalization is deterministic.")),
-            Map.entry("JavadocStyle", new RuleClassification(RuleSupport.CHECK_ONLY, "Natural-language formatting is not always deterministic.")),
+            Map.entry("JavadocStyle", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Missing sentence punctuation is repaired; HTML and empty descriptions remain check-only.")),
             Map.entry("AtclauseOrder", new RuleClassification(RuleSupport.AUTO_FIX_SAFE, "Javadoc tag reordering is deterministic.")),
             Map.entry("MatchXpath", new RuleClassification(RuleSupport.CHECK_ONLY, "Xpath detections require per-rule semantic fix strategies.")),
             Map.entry("SuppressionCommentFilter", new RuleClassification(RuleSupport.CHECK_ONLY, "Configuration-only module; no source rewrite."))
@@ -57,4 +57,3 @@ public final class CheckstyleRuleClassifier {
         );
     }
 }
-

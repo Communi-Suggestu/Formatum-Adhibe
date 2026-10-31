@@ -37,6 +37,9 @@ import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleCommentsI
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleJavadocParagraphStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.CollapseConsecutiveBlankLinesStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.EnsureTrailingNewlineStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleJavadocStyleStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleAnnotationLocationStep;
+import com.communi.suggestu.formatum.adhibe.formatting.steps.CheckstyleSimplifyBooleanReturnStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.InsertBlankLineAfterIndentedBlockStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.InsertBlankLineBeforeIndentedBlockStep;
 import com.communi.suggestu.formatum.adhibe.formatting.steps.LeadingWhitespaceToTabsStep;
@@ -136,6 +139,12 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             ProblemId.create("comments-indentation", "Incorrect comment indentation", FORMATTING_GROUP);
     private static final ProblemId ID_JAVADOC_PARAGRAPH =
             ProblemId.create("javadoc-paragraph", "Incorrect javadoc paragraph formatting", FORMATTING_GROUP);
+    private static final ProblemId ID_JAVADOC_STYLE =
+            ProblemId.create("javadoc-style", "Missing Javadoc sentence punctuation", FORMATTING_GROUP);
+    private static final ProblemId ID_ANNOTATION_LOCATION =
+            ProblemId.create("annotation-location", "Incorrect annotation location", FORMATTING_GROUP);
+    private static final ProblemId ID_SIMPLIFY_BOOLEAN_RETURN =
+            ProblemId.create("simplify-boolean-return", "Redundant boolean return branches", FORMATTING_GROUP);
     private static final ProblemId ID_AVOID_STAR_IMPORT =
             ProblemId.create("avoid-star-import", "Avoid wildcard imports", FORMATTING_GROUP);
     private static final ProblemId ID_ILLEGAL_IMPORT =
@@ -295,6 +304,9 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
             case REDUNDANT_MODIFIER -> ID_REDUNDANT_MODIFIER;
             case COMMENTS_INDENTATION -> ID_COMMENTS_INDENTATION;
             case JAVADOC_PARAGRAPH -> ID_JAVADOC_PARAGRAPH;
+            case JAVADOC_STYLE -> ID_JAVADOC_STYLE;
+            case ANNOTATION_LOCATION -> ID_ANNOTATION_LOCATION;
+            case SIMPLIFY_BOOLEAN_RETURN -> ID_SIMPLIFY_BOOLEAN_RETURN;
             case CONVERT_LEADING_SPACES_TO_TABS -> ID_LEADING_SPACES;
             case ORDER_IMPORTS -> ID_IMPORT_ORDER;
             case AVOID_STAR_IMPORT -> ID_AVOID_STAR_IMPORT;
@@ -418,6 +430,16 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
                 CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
                 CheckstyleWhitespaceAroundStep step = getObjects().newInstance(CheckstyleWhitespaceAroundStep.class, generatedName);
                 step.getTokens().set(splitCsv(module == null ? "" : module.property("tokens").orElse("")));
+                if (module != null) {
+                    module.property("allowEmptyConstructors").map(Boolean::parseBoolean).ifPresent(step.getAllowEmptyConstructors()::set);
+                    module.property("allowEmptyMethods").map(Boolean::parseBoolean).ifPresent(step.getAllowEmptyMethods()::set);
+                    module.property("allowEmptyTypes").map(Boolean::parseBoolean).ifPresent(step.getAllowEmptyTypes()::set);
+                    module.property("allowEmptyLoops").map(Boolean::parseBoolean).ifPresent(step.getAllowEmptyLoops()::set);
+                    module.property("allowEmptyLambdas").map(Boolean::parseBoolean).ifPresent(step.getAllowEmptyLambdas()::set);
+                    module.property("allowEmptyCatches").map(Boolean::parseBoolean).ifPresent(step.getAllowEmptyCatches()::set);
+                    module.property("allowEmptySwitchBlockStatements").map(Boolean::parseBoolean).ifPresent(step.getAllowEmptySwitchBlockStatements()::set);
+                    module.property("ignoreEnhancedForColon").map(Boolean::parseBoolean).ifPresent(step.getIgnoreEnhancedForColon()::set);
+                }
                 yield step.formatter();
             }
             case SINGLE_SPACE_SEPARATOR -> getObjects().newInstance(CheckstyleSingleSpaceSeparatorStep.class, generatedName).formatter();
@@ -433,7 +455,26 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
                 yield step.formatter();
             }
             case COMMENTS_INDENTATION -> getObjects().newInstance(CheckstyleCommentsIndentationStep.class, generatedName).formatter();
-            case JAVADOC_PARAGRAPH -> getObjects().newInstance(CheckstyleJavadocParagraphStep.class, generatedName).formatter();
+            case JAVADOC_STYLE -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                CheckstyleJavadocStyleStep step = getObjects().newInstance(CheckstyleJavadocStyleStep.class, generatedName);
+                step.getCheckFirstSentence().set(module == null
+                        || module.property("checkFirstSentence").map(Boolean::parseBoolean).orElse(true));
+                if (module != null) {
+                    module.property("endOfSentenceFormat").ifPresent(step.getEndOfSentenceFormat()::set);
+                    module.property("scope").ifPresent(step.getScope()::set);
+                    module.property("excludeScope").ifPresent(step.getExcludeScope()::set);
+                }
+                step.getTokens().set(splitCsv(module == null ? "" : module.property("tokens").orElse("")));
+                yield step.formatter();
+            }
+            case JAVADOC_PARAGRAPH -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                CheckstyleJavadocParagraphStep step = getObjects().newInstance(CheckstyleJavadocParagraphStep.class, generatedName);
+                step.getAllowNewlineParagraph().set(module == null
+                        || module.property("allowNewlineParagraph").map(Boolean::parseBoolean).orElse(true));
+                yield step.formatter();
+            }
             case AVOID_STAR_IMPORT -> createImportLintFormatter(generatedName, step -> step.getAvoidStarImport().set(true));
             case REDUNDANT_IMPORT -> createImportLintFormatter(generatedName, step -> step.getRemoveRedundantImports().set(true));
             case UNUSED_IMPORT -> createImportLintFormatter(generatedName, step -> step.getRemoveUnusedImports().set(true));
@@ -448,7 +489,20 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
                     step.getIllegalImportsReason().set(module.message().orElse("Unknown reason for illegal import!"));
                 });
             }
+            case ANNOTATION_LOCATION -> {
+                CheckstyleModuleSpec module = modulesByPath.get(spec.sourceModulePath());
+                var step = getObjects().newInstance(CheckstyleAnnotationLocationStep.class, generatedName);
+                step.getTokens().set(splitCsv(module == null ? "" : module.property("tokens").orElse("")));
+                step.getAllowSamelineSingleParameterlessAnnotation().set(module == null
+                        || module.property("allowSamelineSingleParameterlessAnnotation").map(Boolean::parseBoolean).orElse(true));
+                step.getAllowSamelineParameterizedAnnotation().set(module != null
+                        && module.property("allowSamelineParameterizedAnnotation").map(Boolean::parseBoolean).orElse(false));
+                step.getAllowSamelineMultipleAnnotations().set(module != null
+                        && module.property("allowSamelineMultipleAnnotations").map(Boolean::parseBoolean).orElse(false));
+                yield step.formatter();
+            }
             case MODIFIER_ORDER -> getObjects().newInstance(CheckstyleModifierOrderStep.class, generatedName).formatter();
+            case SIMPLIFY_BOOLEAN_RETURN -> getObjects().newInstance(CheckstyleSimplifyBooleanReturnStep.class, generatedName).formatter();
             default -> throw new IllegalStateException("Unsupported simple step kind: " + spec.kind());
         };
     }
@@ -550,4 +604,3 @@ public abstract class CheckstyleDeterministicStep extends FormattingStep {
         getFailOnHintConflicts().convention(true);
     }
 }
-

@@ -45,6 +45,8 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation gradleTestKit()
+    // Reference implementation the WhitespaceAround step is verified against.
+    testImplementation 'com.puppycrawl.tools:checkstyle:13.5.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -59,4 +61,7 @@ gradlePlugin {
 
 test {
     useJUnitPlatform()
+    if (System.getProperty('whitespaceAround.corpus') != null) {
+        systemProperty 'whitespaceAround.corpus', System.getProperty('whitespaceAround.corpus')
+    }
 }

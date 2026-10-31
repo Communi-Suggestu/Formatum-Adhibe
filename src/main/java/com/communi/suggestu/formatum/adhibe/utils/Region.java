@@ -210,7 +210,9 @@ public record Region(
 			else if (region.isMultiLineMethodStatement()
 					&& (previous == null || !previous.isParameterBlock())
 					&& (!isLambdaParameterStartingOnSameLine(region, next, secondNext))
-					&& !region.isStart(lineIndex)) {
+					&& !region.isStart(lineIndex)
+					&& (region.hasNestedCodeBlock() || region.end().lineOffset() != lineIndex
+					|| region.isNotClosingOperandsOnly(lineIndex))) {
 				depth++;
 				if (debugMode == RegionFinder.DebugMode.RegionDepthTracking) {
 					depthReasons.add("Multi-line method statement continuation depth increase 1");
@@ -232,7 +234,8 @@ public record Region(
 
 			//Any code block we are in also gets us one
 			if (region.isCodeBlock() && !region.isIsolatedStartOrEndOperand(lineIndex)
-					&& !(isCaseLabelAt(lineIndex) && region.isSwitchBody())) {
+					&& !(region.isSwitchBody() && (isCaseLabelAt(lineIndex)
+					|| next != null && next.isCodeBlock()))) {
 				depth++;
 				if (debugMode == RegionFinder.DebugMode.RegionDepthTracking) {
 					depthReasons.add("Code block depth increase");
@@ -258,10 +261,10 @@ public record Region(
 				next != null && next.isCodeBlock() && next.isLambda();
 	}
 
-	private static final Pattern NOT_CLOSING_OPERANDS = Pattern.compile("[^});\\]]");
+	private static final Pattern NOT_CLOSING_OPERANDS = Pattern.compile("[^});,\\]\\s]");
 	private static final Pattern CLOSING_OPERANDS     = Pattern.compile("[});\\]]");
 
-	private static final Pattern CASE_LABEL = Pattern.compile("^case(?![A-Za-z0-9_])"); // excludes cases()/caseSensitive etc.
+	private static final Pattern CASE_LABEL = Pattern.compile("^(?:case(?![A-Za-z0-9_])|default(?=\\s*(?::|->|$)))");
 
 	private boolean isCaseLabelAt(final int lineIndex) {
 		return CASE_LABEL.matcher(getContentLine(lineIndex)).find();
@@ -357,6 +360,9 @@ public record Region(
 	}
 
 	private boolean isIsolatedEndClosingOperand() {
+		if (isCodeBlock() && !content.stripLeading().startsWith("{")) {
+			return false;
+		}
 		final var endLine = lines()[lines.length - 1].trim();
 		return endLine.equals("}") || endLine.equals(")") || endLine.equals("]");
 	}

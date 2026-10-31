@@ -9,6 +9,11 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.SwitchExpressionTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.VariableTree;
+import com.sun.source.tree.IfTree;
+import com.sun.source.tree.ForLoopTree;
+import com.sun.source.tree.EnhancedForLoopTree;
+import com.sun.source.tree.WhileLoopTree;
+import com.sun.source.tree.DoWhileLoopTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePathScanner;
@@ -223,6 +228,20 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 		@Override
 		public Void scan(Tree tree, Void unused) {
 			if (tree != null) {
+				if (tree instanceof IfTree condition) {
+					addUnbracedBody(condition.getThenStatement());
+					if (condition.getElseStatement() != null && !(condition.getElseStatement() instanceof IfTree)) {
+						addUnbracedBody(condition.getElseStatement());
+					}
+				} else if (tree instanceof ForLoopTree loop) {
+					addUnbracedBody(loop.getStatement());
+				} else if (tree instanceof EnhancedForLoopTree loop) {
+					addUnbracedBody(loop.getStatement());
+				} else if (tree instanceof WhileLoopTree loop) {
+					addUnbracedBody(loop.getStatement());
+				} else if (tree instanceof DoWhileLoopTree loop) {
+					addUnbracedBody(loop.getStatement());
+				}
 				switch (tree.getKind()) {
 					case EXPRESSION_STATEMENT, RETURN, THROW, BREAK, CONTINUE, ASSERT, YIELD ->
 							add(start(tree), end(tree), Kind.STATEMENT);
@@ -243,6 +262,12 @@ public record RegionFinder(ParseMode parseMode, DebugMode debugMode) {
 				}
 			}
 			return super.scan(tree, unused);
+		}
+
+		private void addUnbracedBody(Tree body) {
+			if (!(body instanceof BlockTree)) {
+				add(start(body), end(body), Kind.BLOCK);
+			}
 		}
 
 		private Span addBody(Tree tree) {
